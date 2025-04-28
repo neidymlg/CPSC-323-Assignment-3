@@ -1,3 +1,6 @@
+#ifndef RPD_H
+#define RPD_H
+
 #include <string>
 #include <vector>
 #include <fstream>
@@ -5,24 +8,9 @@
 #include <iostream>
 #include <stack>
 #include <unordered_map>
+#include <optional>
+#include "TokenType.h"
 using namespace std;
-
-enum class TokenType {
-    KEYWORD,
-    IDENTIFIER,
-    INTEGER,
-    REAL,
-    OPERATOR,
-    SEPARATOR,
-    UNKNOWN, 
-    EMPTY
-};
-
-struct Token {
-    TokenType type;
-    std::string value;
-    Token(TokenType type, string value) : type(type), value(value) {}
-};
 
 // Redirects the output to a file
 // changes cout to a file stream
@@ -50,20 +38,22 @@ public:
 class Symbol_and_Assembly{
 private:
     int memoryAddr = 10000;
-    int instructionAddr=1;
+    int instructionAddr= 1;
 
     struct Instruction {
         int ADDR;
         string Operator;
-        int Operand;
+        optional<int> Operand;
+        Instruction(int a, const string& op, optional<int> o) : 
+        ADDR(a), Operator(op), Operand(o) {}
     };
 
     vector<Instruction> InstructTable;
 
-    stack<int> Stack;
+    stack<string> Stack;
     stack<int> JumpStack;
 
-    unordered_map<int, int> memory;
+    unordered_map<string, int> SymbolTable;
     unordered_map<string, int> varTable;
 public:
     Symbol_and_Assembly(){
@@ -71,25 +61,53 @@ public:
         InstructTable.reserve(1000);
     }
 
+    //Add into Instruction Table
+    void generate_instruction(string op, optional<int> oprnd = nullopt){
+        InstructTable.emplace_back(instructionAddr++, op, oprnd);
+    }
+
+    //Add a variable into the Symbol table
+    void generate_symbol(string var){
+        SymbolTable[var] = memoryAddr;
+        memoryAddr++;
+    }
+
+    // Returns Variable Memory
+    int getAddress(string var){
+        return SymbolTable[var];
+    }
+
+    int getInstructionAddr(){
+        return instructionAddr;
+    }
+
+    void back_patch(int JMP_address){
+        if(JumpStack.size() >= 1){
+            int addr = JumpStack.top();
+            JumpStack.pop();
+            InstructTable[addr].Operand = JMP_address;
+        }
+    }
+
     //PUSHI
     void PUSHI(int intValue){
         //Pushes the {Integer Value} onto the Top of the Stack (TOS)
-        Stack.push(intValue);
+
+        Stack.push(to_string(intValue));
     }
     
     //PUSHM
-    void PUSHM(int memoryLoc){
+    void PUSHM(string var){
         //Pushes the value stored at {ML} onto TOS
-        int value = memory[memoryLoc];
-        Stack.push(value);
+        Stack.push(var);
     }
 
     void POPM(int memoryLoc){
         //Pops the value from the top of the stack and stores it at {ML}
         if(!Stack.empty()){
-            int value = Stack.top();
+            string value = Stack.top();
             Stack.pop();
-            memory[memoryLoc] = value;
+            generate_instruction("POPM", memoryLoc);
         }
     }
 
@@ -105,123 +123,140 @@ public:
     void A(){
         // Pop the first two items from stack and push the sum onto the TOS
         if (Stack.size() >= 2) {
-            int first = Stack.top(); 
+            int first = stoi(Stack.top()); 
             Stack.pop();
-            int second = Stack.top(); 
+            int second = stoi(Stack.top()); 
             Stack.pop();
-            Stack.push(first + second);
+            Stack.push(to_string(first + second));
         } 
     }
 
     void S(){
         // Pop the first two items from stack and push the difference onto the TOS
         if (Stack.size() >= 2) {
-            int first = Stack.top(); 
+            int first = stoi(Stack.top()); 
             Stack.pop();
-            int second = Stack.top(); 
+            int second = stoi(Stack.top()); 
             Stack.pop();
-            Stack.push(second - first);
+            Stack.push(to_string(second - first));
         } 
     }
 
     void M(){
         // Pop the first two items from stack and push the product onto the TOS
         if (Stack.size() >= 2) {
-            int first = Stack.top(); 
+            int first = stoi(Stack.top()); 
             Stack.pop();
-            int second = Stack.top(); 
+            int second = stoi(Stack.top()); 
             Stack.pop();
-            Stack.push(first * second);
+            Stack.push(to_string(first * second));
         }
     }
 
     void D(){
         // Pop the first two items from stack and push the result onto the TOS
         if (Stack.size() >= 2) {
-            int first = Stack.top(); 
+            int first = stoi(Stack.top()); 
             Stack.pop();
-            int second = Stack.top(); 
+            int second = stoi(Stack.top()); 
             Stack.pop();
             if (first != 0) {
-                Stack.push(second / first);
+                Stack.push(to_string(second / first));
             } else {
-               //ERROR
+               Stack.push("nullopt");
             }
         } 
     }
 
     void GRT(){
+        //Pops two items from the stack and pushes 1 onto TOS if second item is larger otherwise push 0
         if (Stack.size() >= 2) {
-            int first = Stack.top(); 
+            int first = stoi(Stack.top()); 
             Stack.pop();
-            int second = Stack.top(); 
+            int second = stoi(Stack.top()); 
             Stack.pop();
-            Stack.push(second > first ? 1 : 0);
+            Stack.push(second > first ? "1" : "0");
         } else {
         }
     }
 
     void LES() {
+        //Pops two items from the stack and pushes 1 onto TOS if the second item is smaller than first item otherwise push 0
         if (Stack.size() >= 2) {
-            int first = Stack.top(); 
+            int first = stoi(Stack.top()); 
             Stack.pop();
-            int second = Stack.top(); 
+            int second = stoi(Stack.top()); 
             Stack.pop();
-            Stack.push(second < first ? 1 : 0);
+            Stack.push(second < first ? "1" : "0");
         } else {
         }
     }
 
     void EQU() {
+        //Pops two items from the stack and pushes 1 onto TOS if they are equal otherwise push 0
         if (Stack.size() >= 2) {
-            int first = Stack.top(); 
+            int first = stoi(Stack.top()); 
             Stack.pop();
-            int second = Stack.top(); 
+            int second = stoi(Stack.top()); 
             Stack.pop();
-            Stack.push(second == first ? 1 : 0);
+            Stack.push(second == first ? "1" : "0");
         } else {
         }
     }
 
     void NEQ() {
+        //Pops two items from the stack and pushes 1 onto TOS if they are not equal otherwise push 0
         if (Stack.size() >= 2) {
-            int first = Stack.top(); 
+            int first = stoi(Stack.top()); 
             Stack.pop();
-            int second = Stack.top(); 
+            int second = stoi(Stack.top()); 
             Stack.pop();
-            Stack.push(second != first ? 1 : 0);
+            Stack.push(second != first ? "1" : "0");
         } else {
         }
     }
 
     void GEQ() {
+        //Pops two items from the stack and pushes 1 onto TOS if second item is larger or equal otherwise push 0
         if (Stack.size() >= 2) {
-            int first = Stack.top(); 
+            int first = stoi(Stack.top()); 
             Stack.pop();
-            int second = Stack.top(); 
+            int second = stoi(Stack.top()); 
             Stack.pop();
-            Stack.push(second >= first ? 1 : 0);
+            Stack.push(second >= first ? "1" : "0");
         } else {
         }
     }
 
     void LEQ() {
+        //Pops two items from the stack and pushes 1 onto TOS if second item is Less or equal otherwise push 0
         if (Stack.size() >= 2) {
-            int first = Stack.top(); 
+            int first = stoi(Stack.top()); 
             Stack.pop();
-            int second = Stack.top(); 
+            int second = stoi(Stack.top()); 
             Stack.pop();
-            Stack.push(second <= first ? 1 : 0);
+            Stack.push(second <= first ? "1" : "0");
         } else {
         }
     }
 
-    void JMP0(){
-        
+    void JMP0(int instructionLoc){
+        //Pop the stack and if the value is 0 then jmp to {IL}
+        if (Stack.size() >= 1){
+            int value = stoi(Stack.top());
+            if(value == 0){
+                //
+            }
+        }
     }
 
     void JMP(int instructionLoc) {
-        JumpStack.push(instructionLoc);
+        //Unconditionally jmp to {IL}
+        //generate_instruction(instructionLoc);
+    }
+
+    void push_JMPstack(){
+        JumpStack.push(getInstructionAddr());
     }
 
     void LABEL(){}
@@ -231,6 +266,7 @@ public:
 class SyntaxAnalyzer { 
 private:
 
+    Symbol_and_Assembly symbolAndAssembly;
     vector<Token> tokens;
     size_t currentIndex = 0;
 
@@ -562,6 +598,8 @@ public:
         Token token = lexer(true);
         if(token.type == TokenType::IDENTIFIER) {
             cout << "<Identifier> -> Identifier" << endl;
+            //Adds in the var (name) into the symbol table 
+            symbolAndAssembly.generate_symbol(token.value);
         } else {
             cout << "Error: Invalid Identifier. Expected token type of IDENTIFIER";
         }
@@ -695,21 +733,28 @@ public:
             cout << "<While>" << endl;
             cout << "<While> -> while ( <Condition> ) <Statement> endwhile" << endl;
             cout << "<While> -> while" << endl;
+            int instruction_Addr = symbolAndAssembly.getInstructionAddr();
+            symbolAndAssembly.generate_instruction("LABEL");
             token = lexer(true);
             if(token.type == TokenType::SEPARATOR && token.value == "("){
                 cout << "( <Condition>" << endl;
                 Condition();
                 token = lexer(true);
                 if(token.type == TokenType::SEPARATOR && token.value == ")"){
-                  cout << ") <Statement>" << endl;
-                  Statement();
-                  token = lexer(true);
-                  if(token.type == TokenType::KEYWORD && token.value == "endwhile"){
+                    cout << ") <Statement>" << endl;
+                    Statement();
+                    token = lexer(true);
+                    // ADD IN JMP FUNCTION -------------------------------------------
+                    symbolAndAssembly.JMP(instruction_Addr);
+                    symbolAndAssembly.generate_instruction("JMP", instruction_Addr);
+                    symbolAndAssembly.back_patch(symbolAndAssembly.getInstructionAddr());
+                    
+                    if(token.type == TokenType::KEYWORD && token.value == "endwhile"){
                     cout << "endwhile" << endl;
-                  }
-                  else{
+                    }
+                    else{
                     cout << "Error in 'endwhile' for <While>";
-                  }
+                    }
                 }
                 else{
                     cout << "Error in beginning ')' for <While>";
@@ -723,11 +768,15 @@ public:
             cout << "<Assign>" << endl;
             cout << "<Assign> -> <Identifier> = <Expression> ;" << endl;
             cout << "<Assign> -> <Identifier>" << endl;
+            string var = token.value; // Save the variable
             Token token = lexer(true);
                 if(token.type == TokenType::OPERATOR && token.value == "="){
                     cout << "= <Expression> ;" << endl;
                     Expression();
                     token = lexer(true);
+                    // REPLACE POPM
+                    int memoryLoc = symbolAndAssembly.getAddress(var);
+                    symbolAndAssembly.POPM(memoryLoc);
                     if(token.type == TokenType::SEPARATOR && token.value == ";"){
                         cout << ";" << endl;
                         cout << "End of Assign" << endl;
@@ -808,6 +857,49 @@ public:
         if(token.type == TokenType::OPERATOR && 
             (token.value == "==" || token.value == "!=" || token.value == ">" || token.value == "<" || token.value == "<=" || token.value == "=>")){
             cout << "<Relop> -> == | != | > | < | <= | =>" << endl;
+            
+            if(token.value == ">"){
+                symbolAndAssembly.GRT();
+                symbolAndAssembly.generate_instruction("GRT");
+                symbolAndAssembly.push_JMPstack(); /* another stack need */
+                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
+                symbolAndAssembly.generate_instruction("JMP0");
+            }
+            else if(token.value == "<"){
+                symbolAndAssembly.LES();
+                symbolAndAssembly.generate_instruction("LES");
+                symbolAndAssembly.push_JMPstack(); /* another stack need */
+                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
+                symbolAndAssembly.generate_instruction("JMP0");
+            }
+            else if(token.value == "=="){
+                symbolAndAssembly.EQU();
+                symbolAndAssembly.generate_instruction("EQU");
+                symbolAndAssembly.push_JMPstack(); /* another stack need */
+                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
+                symbolAndAssembly.generate_instruction("JMP0");
+            }
+            else if(token.value == "!="){
+                symbolAndAssembly.NEQ();
+                symbolAndAssembly.generate_instruction("NEQ");
+                symbolAndAssembly.push_JMPstack(); /* another stack need */
+                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
+                symbolAndAssembly.generate_instruction("JMP0");
+            }
+            else if(token.value == ">="){
+                symbolAndAssembly.GEQ();
+                symbolAndAssembly.generate_instruction("GEQ");
+                symbolAndAssembly.push_JMPstack(); /* another stack need */
+                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
+                symbolAndAssembly.generate_instruction("JMP0");
+            }
+            else if(token.value == "<="){
+                symbolAndAssembly.LEQ();
+                symbolAndAssembly.generate_instruction("LEQ");
+                symbolAndAssembly.push_JMPstack(); /* another stack need */
+                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
+                symbolAndAssembly.generate_instruction("JMP0");
+            }
         }
         else{
             cout << "Error in Relop. Expected token type of OPERATOR with value ==, !=, >, <, <=, or =>";
@@ -824,12 +916,21 @@ public:
     void E() {
         //  + <Term> <E> | - <Term><E> | ɛ
         Token token = lexer();
+        string operator_addition_subtraction = token.value;
         currentIndex--;
         if(token.type == TokenType::OPERATOR &&
             (token.value == "+" || token.value == "-")){
             token = lexer(true);
             cout << "<E> -> + <Term> <E> | - <Term><E>" << endl;
             Term();
+            if(operator_addition_subtraction == "+"){
+                symbolAndAssembly.A();
+                symbolAndAssembly.generate_instruction("A");
+            }
+            else if(operator_addition_subtraction == "-"){
+                symbolAndAssembly.S();
+                symbolAndAssembly.generate_instruction("S");
+            }
             E();
         }
         else{
@@ -841,12 +942,24 @@ public:
     void T(){
         // * <Factor> <T> | / <Factor> <T> | ɛ
         Token token = lexer();
+        string var = token.value; //get a copy of the "*" or "/"
         currentIndex--;
         if(token.type == TokenType::OPERATOR &&
             (token.value == "*" || token.value == "/")){
             token = lexer(true);
             cout << "<T> -> * <Factor> <T> | / <Factor> <T>" << endl;
             Factor();
+
+            if(var == "*"){
+                //ADD IN MULTIPLY or DIVIDE
+                symbolAndAssembly.M();
+                symbolAndAssembly.generate_instruction("M");
+            }
+            else if(var == "/"){
+                symbolAndAssembly.D();
+                symbolAndAssembly.generate_instruction("D");
+            }
+
             T();
         } 
         else{
@@ -880,6 +993,16 @@ public:
         Token token = lexer(true);
         if (token.type == TokenType::INTEGER || token.type == TokenType::REAL || token.type == TokenType::IDENTIFIER || 
             (token.type == TokenType::KEYWORD && (token.value == "true" || token.value == "false"))) {
+            //ADD IN PUSHM for the identifier, PUSHI for the random Integers, CHANGE
+            if(token.type == TokenType::INTEGER){
+                symbolAndAssembly.PUSHI(stoi(token.value));
+                symbolAndAssembly.generate_instruction("PUSHI");
+            }
+            else if(token.type == TokenType::IDENTIFIER){
+                symbolAndAssembly.PUSHM(token.value);
+                symbolAndAssembly.generate_instruction("PUSHM", symbolAndAssembly.getAddress(token.value));
+            }
+            
             cout << "<Primary> -> <INTEGER> | <REAL> | <IDENTIFIER> | true, false" << endl;
         } 
         else{
@@ -889,22 +1012,23 @@ public:
 
 };
 
-int main(){
-    string inputFile;
-    int headerNumber;
-    string outputFile;
+#endif
+// int main(){
+//     string inputFile;
+//     int headerNumber;
+//     string outputFile;
 
-    cout << "Enter the input file name (SA_input_1.txt , SA_input_2.txt, SA_input_3.txt): ";
-    cin >> inputFile;
-    cout << "Enter the number of header lines to skip (3, 0, 0): ";
-    cin >> headerNumber;
+//     cout << "Enter the input file name (SA_input_1.txt , SA_input_2.txt, SA_input_3.txt): ";
+//     cin >> inputFile;
+//     cout << "Enter the number of header lines to skip (3, 0, 0): ";
+//     cin >> headerNumber;
 
-    SyntaxAnalyzer analyzer;
-    OutputRedirector redirect("Syntax_Output.txt"); // Redirect output to the specified file
+//     SyntaxAnalyzer analyzer;
+//     OutputRedirector redirect("Syntax_Output.txt"); // Redirect output to the specified file
 
-    analyzer.readFile(inputFile, headerNumber); // Read the input file
+//     analyzer.readFile(inputFile, headerNumber); // Read the input file
 
-    analyzer.Rat25S(); // Start the parsing process
+//     analyzer.Rat25S(); // Start the parsing process
 
-    return 0;
-}
+//     return 0;
+// }
