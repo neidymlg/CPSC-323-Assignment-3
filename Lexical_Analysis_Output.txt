@@ -1,0 +1,45 @@
+
+Output:
+                    token                             lexeme
+------------------------------------------------------------
+                   separator                          $$
+                   separator                          $$
+                   keyword                            integer
+                   identifier                         i
+                   separator                          ,
+                   identifier                         max
+                   separator                          ,
+                   identifier                         sum
+                   separator                          ;
+                   separator                          $$
+                   identifier                         i
+                   operator                           =
+                   integer                            2
+                   separator                          ;
+                   identifier                         max
+                   operator                           =
+                   integer                            1
+                   separator                          ;
+                   keyword                            if
+                   separator                          (
+                   identifier                         i
+                   operator                           <
+                   identifier                         max
+                   separator                          )
+                   separator                          {
+                   identifier                         sum
+                   operator                           =
+                   identifier                         sum
+                   operator                           +
+                   identifier                         i
+                   separator                          ;
+                   identifier                         i
+                   operator                           =
+                   identifier                         i
+                   operator                           +
+                   integer                            1
+                   separator                          ;
+                   separator                          }
+                   keyword                            endif
+                   separator                          ;
+                   separator                          $$

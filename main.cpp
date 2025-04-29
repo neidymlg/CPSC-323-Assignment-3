@@ -36,7 +36,7 @@ int main(){
     fclose(filePointer);
 
     //get's file name and writes to file
-    string outputFileName = "output1.txt";
+    string outputFileName = "Lexical_Analysis_Output.txt";
 
     ofstream outFile(outputFileName);
     if (!outFile) {
@@ -79,5 +79,8 @@ int main(){
 
     analyzer.Rat25S(); // Start the parsing process
 
+
+    string RPD_File = "RPD_File.txt";
+    analyzer.display_RPD(RPD_File);
     return 0;
 }

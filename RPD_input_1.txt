@@ -4,6 +4,10 @@ $$
 $$
 integer i, max, sum; [* declarations *]
 $$
-sum = 0;
-i = 1;
+i = 2;
+max = 1;
+if (i < max) {
+sum = sum + i;
+i = i + 1;
+} endif;
 $$

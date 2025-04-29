@@ -53,12 +53,56 @@ private:
     stack<string> Stack;
     stack<int> JumpStack;
 
-    unordered_map<string, int> SymbolTable;
+    unordered_map<string, pair<int, optional<int>>> SymbolTable;
     unordered_map<string, int> varTable;
 public:
     Symbol_and_Assembly(){
         //reserve 1000 spaces in vector for Instruction table
         InstructTable.reserve(1000);
+    }
+
+     void display_instructions(ostream& out) {
+        out << "\n=== INSTRUCTION TABLE ===\n";
+        out << "ADDR\tOPERATOR\tOPERAND\n";
+        out << "------------------------\n";
+        for (const auto& instr : InstructTable) {
+            out << instr.ADDR << "\t" << instr.Operator << "\t\t";
+            if (instr.Operand.has_value()) {
+                out << instr.Operand.value();
+            } else {
+                out << "nullopt";
+            }
+            out << "\n";
+        }
+    }
+
+    void display_stack(ostream& out) {
+        out << "\n=== STACK CONTENTS ===\n";
+        out << "TOP\n";
+        out << "----\n";
+        
+        // Create a temporary stack to preserve original
+        auto tempStack = Stack;
+        while (!tempStack.empty()) {
+            out << tempStack.top() << "\n";
+            tempStack.pop();
+        }
+        out << "BOTTOM\n";
+    }
+
+    void display_symbol_table(ostream& out) {
+        out << "\n=== SYMBOL TABLE ===\n";
+        out << "NAME\t\tADDRESS\t\tVALUE\n";
+        out << "--------------------------------\n";
+        for (const auto& entry : SymbolTable) {
+            out << entry.first << "\t\t" << entry.second.first << "\t\t";
+            if (entry.second.second.has_value()) {
+                out << entry.second.second.value();
+            } else {
+                out << "nullopt";
+            }
+            out << "\n";
+        }
     }
 
     //Add into Instruction Table
@@ -68,13 +112,14 @@ public:
 
     //Add a variable into the Symbol table
     void generate_symbol(string var){
-        SymbolTable[var] = memoryAddr;
+        SymbolTable[var].first = memoryAddr;
+        SymbolTable[var].second = nullopt;
         memoryAddr++;
     }
 
     // Returns Variable Memory
     int getAddress(string var){
-        return SymbolTable[var];
+        return SymbolTable[var].first;
     }
 
     int getInstructionAddr(){
@@ -85,14 +130,15 @@ public:
         if(JumpStack.size() >= 1){
             int addr = JumpStack.top();
             JumpStack.pop();
-            InstructTable[addr].Operand = JMP_address;
+            if(InstructTable[addr].Operator == "JMP0"){
+                InstructTable[addr].Operand = JMP_address;
+            }
         }
     }
 
     //PUSHI
     void PUSHI(int intValue){
         //Pushes the {Integer Value} onto the Top of the Stack (TOS)
-
         Stack.push(to_string(intValue));
     }
     
@@ -102,11 +148,25 @@ public:
         Stack.push(var);
     }
 
-    void POPM(int memoryLoc){
+    void POPM(int memoryLoc, string var){
         //Pops the value from the top of the stack and stores it at {ML}
         if(!Stack.empty()){
             string value = Stack.top();
             Stack.pop();
+
+            try{
+                int intValue = stoi(value);
+                SymbolTable[var].second = intValue;
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[value].second != nullopt){
+                    SymbolTable[var].second = SymbolTable[value].second;
+                }
+                else{
+
+                }
+            }
+
             generate_instruction("POPM", memoryLoc);
         }
     }
@@ -123,47 +183,159 @@ public:
     void A(){
         // Pop the first two items from stack and push the sum onto the TOS
         if (Stack.size() >= 2) {
-            int first = stoi(Stack.top()); 
+            string first = Stack.top();
             Stack.pop();
-            int second = stoi(Stack.top()); 
+            string second = Stack.top();
             Stack.pop();
-            Stack.push(to_string(first + second));
+
+            int firstVal;
+            int secondVal;
+
+            try{
+                firstVal = stoi(first); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[first].second.has_value()){
+                    firstVal = SymbolTable[first].second.value();
+                }
+                else{
+
+                }
+            }
+
+            try{
+                secondVal = stoi(second); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[second].second.has_value()){
+                    secondVal = SymbolTable[second].second.value();
+                }
+                else{
+
+                }
+            }
+
+            Stack.push(to_string(secondVal + firstVal));
         } 
     }
 
     void S(){
         // Pop the first two items from stack and push the difference onto the TOS
         if (Stack.size() >= 2) {
-            int first = stoi(Stack.top()); 
+            string first = Stack.top();
             Stack.pop();
-            int second = stoi(Stack.top()); 
+            string second = Stack.top();
             Stack.pop();
-            Stack.push(to_string(second - first));
+
+            int firstVal;
+            int secondVal;
+
+            try{
+                firstVal = stoi(first); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[first].second.has_value()){
+                    firstVal = SymbolTable[first].second.value();
+                }
+                else{
+
+                }
+            }
+
+            try{
+                secondVal = stoi(second); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[second].second.has_value()){
+                    secondVal = SymbolTable[second].second.value();
+                }
+                else{
+
+                }
+            }
+            
+            Stack.push(to_string(secondVal - firstVal));
         } 
     }
 
     void M(){
         // Pop the first two items from stack and push the product onto the TOS
         if (Stack.size() >= 2) {
-            int first = stoi(Stack.top()); 
+            string first = Stack.top();
             Stack.pop();
-            int second = stoi(Stack.top()); 
+            string second = Stack.top();
             Stack.pop();
-            Stack.push(to_string(first * second));
+
+            int firstVal;
+            int secondVal;
+
+            try{
+                firstVal = stoi(first); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[first].second.has_value()){
+                    firstVal = SymbolTable[first].second.value();
+                }
+                else{
+
+                }
+            }
+
+            try{
+                secondVal = stoi(second); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[second].second.has_value()){
+                    secondVal = SymbolTable[second].second.value();
+                }
+                else{
+
+                }
+            }
+            
+            Stack.push(to_string(secondVal * firstVal));
         }
     }
 
     void D(){
         // Pop the first two items from stack and push the result onto the TOS
         if (Stack.size() >= 2) {
-            int first = stoi(Stack.top()); 
+            string first = Stack.top();
             Stack.pop();
-            int second = stoi(Stack.top()); 
+            string second = Stack.top();
             Stack.pop();
-            if (first != 0) {
-                Stack.push(to_string(second / first));
+
+            int firstVal;
+            int secondVal;
+
+            try{
+                firstVal = stoi(first); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[first].second.has_value()){
+                    firstVal = SymbolTable[first].second.value();
+                }
+                else{
+
+                }
+            }
+
+            try{
+                secondVal = stoi(second); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[second].second.has_value()){
+                    secondVal = SymbolTable[second].second.value();
+                }
+                else{
+
+                }
+            }
+            
+            if (firstVal != 0) {
+                Stack.push(to_string(secondVal / firstVal));
             } else {
-               Stack.push("nullopt");
+               Stack.push("NAN");
             }
         } 
     }
@@ -171,11 +343,39 @@ public:
     void GRT(){
         //Pops two items from the stack and pushes 1 onto TOS if second item is larger otherwise push 0
         if (Stack.size() >= 2) {
-            int first = stoi(Stack.top()); 
+            string first = Stack.top();
             Stack.pop();
-            int second = stoi(Stack.top()); 
+            string second = Stack.top();
             Stack.pop();
-            Stack.push(second > first ? "1" : "0");
+
+            int firstVal;
+            int secondVal;
+
+            try{
+                firstVal = stoi(first); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[first].second.has_value()){
+                    firstVal = SymbolTable[first].second.value();
+                }
+                else{
+
+                }
+            }
+
+            try{
+                secondVal = stoi(second); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[second].second.has_value()){
+                    secondVal = SymbolTable[second].second.value();
+                }
+                else{
+
+                }
+            }
+        
+            Stack.push(secondVal > firstVal ? "1" : "0");
         } else {
         }
     }
@@ -183,11 +383,39 @@ public:
     void LES() {
         //Pops two items from the stack and pushes 1 onto TOS if the second item is smaller than first item otherwise push 0
         if (Stack.size() >= 2) {
-            int first = stoi(Stack.top()); 
+            string first = Stack.top();
             Stack.pop();
-            int second = stoi(Stack.top()); 
+            string second = Stack.top();
             Stack.pop();
-            Stack.push(second < first ? "1" : "0");
+
+            int firstVal;
+            int secondVal;
+
+            try{
+                firstVal = stoi(first); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[first].second.has_value()){
+                    firstVal = SymbolTable[first].second.value();
+                }
+                else{
+
+                }
+            }
+
+            try{
+                secondVal = stoi(second); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[second].second.has_value()){
+                    secondVal = SymbolTable[second].second.value();
+                }
+                else{
+
+                }
+            }
+
+            Stack.push(secondVal < firstVal ? "1" : "0");
         } else {
         }
     }
@@ -195,11 +423,39 @@ public:
     void EQU() {
         //Pops two items from the stack and pushes 1 onto TOS if they are equal otherwise push 0
         if (Stack.size() >= 2) {
-            int first = stoi(Stack.top()); 
+            string first = Stack.top();
             Stack.pop();
-            int second = stoi(Stack.top()); 
+            string second = Stack.top();
             Stack.pop();
-            Stack.push(second == first ? "1" : "0");
+
+            int firstVal;
+            int secondVal;
+
+            try{
+                firstVal = stoi(first); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[first].second.has_value()){
+                    firstVal = SymbolTable[first].second.value();
+                }
+                else{
+
+                }
+            }
+
+            try{
+                secondVal = stoi(second); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[second].second.has_value()){
+                    secondVal = SymbolTable[second].second.value();
+                }
+                else{
+
+                }
+            }
+
+            Stack.push(secondVal == firstVal ? "1" : "0");
         } else {
         }
     }
@@ -207,11 +463,39 @@ public:
     void NEQ() {
         //Pops two items from the stack and pushes 1 onto TOS if they are not equal otherwise push 0
         if (Stack.size() >= 2) {
-            int first = stoi(Stack.top()); 
+            string first = Stack.top();
             Stack.pop();
-            int second = stoi(Stack.top()); 
+            string second = Stack.top();
             Stack.pop();
-            Stack.push(second != first ? "1" : "0");
+
+            int firstVal;
+            int secondVal;
+
+            try{
+                firstVal = stoi(first); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[first].second.has_value()){
+                    firstVal = SymbolTable[first].second.value();
+                }
+                else{
+
+                }
+            }
+
+            try{
+                secondVal = stoi(second); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[second].second.has_value()){
+                    secondVal = SymbolTable[second].second.value();
+                }
+                else{
+
+                }
+            }
+
+            Stack.push(secondVal != firstVal ? "1" : "0");
         } else {
         }
     }
@@ -219,11 +503,39 @@ public:
     void GEQ() {
         //Pops two items from the stack and pushes 1 onto TOS if second item is larger or equal otherwise push 0
         if (Stack.size() >= 2) {
-            int first = stoi(Stack.top()); 
+            string first = Stack.top();
             Stack.pop();
-            int second = stoi(Stack.top()); 
+            string second = Stack.top();
             Stack.pop();
-            Stack.push(second >= first ? "1" : "0");
+
+            int firstVal;
+            int secondVal;
+
+            try{
+                firstVal = stoi(first); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[first].second.has_value()){
+                    firstVal = SymbolTable[first].second.value();
+                }
+                else{
+
+                }
+            }
+
+            try{
+                secondVal = stoi(second); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[second].second.has_value()){
+                    secondVal = SymbolTable[second].second.value();
+                }
+                else{
+
+                }
+            }
+
+            Stack.push(secondVal >= firstVal ? "1" : "0");
         } else {
         }
     }
@@ -231,32 +543,61 @@ public:
     void LEQ() {
         //Pops two items from the stack and pushes 1 onto TOS if second item is Less or equal otherwise push 0
         if (Stack.size() >= 2) {
-            int first = stoi(Stack.top()); 
+            string first = Stack.top();
             Stack.pop();
-            int second = stoi(Stack.top()); 
+            string second = Stack.top();
             Stack.pop();
-            Stack.push(second <= first ? "1" : "0");
+
+            int firstVal;
+            int secondVal;
+
+            try{
+                firstVal = stoi(first); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[first].second.has_value()){
+                    firstVal = SymbolTable[first].second.value();
+                }
+                else{
+
+                }
+            }
+
+            try{
+                secondVal = stoi(second); 
+            }
+            catch (const invalid_argument& e) {
+                if(SymbolTable[second].second.has_value()){
+                    secondVal = SymbolTable[second].second.value();
+                }
+                else{
+
+                }
+            }
+
+            Stack.push(secondVal <= firstVal ? "1" : "0");
         } else {
         }
     }
 
-    void JMP0(int instructionLoc){
+    void JMP0(){
         //Pop the stack and if the value is 0 then jmp to {IL}
         if (Stack.size() >= 1){
-            int value = stoi(Stack.top());
-            if(value == 0){
-                //
+            string value = Stack.top();
+            Stack.pop();
+            if(value == "0"){
+                generate_instruction("JMP0");
             }
         }
     }
 
     void JMP(int instructionLoc) {
         //Unconditionally jmp to {IL}
-        //generate_instruction(instructionLoc);
+        generate_instruction("JMP", instructionLoc);
     }
 
-    void push_JMPstack(){
-        JumpStack.push(getInstructionAddr());
+    void push_JMPstack(int instructionLoc){
+        JumpStack.push(instructionLoc);
     }
 
     void LABEL(){}
@@ -341,6 +682,23 @@ private:
     }
 
 public: 
+
+    void display_RPD(const string& filename) {
+
+        ofstream outFile(filename);
+        
+        if (outFile.is_open()) {
+            // Display all components
+            symbolAndAssembly.display_instructions(outFile);
+            symbolAndAssembly.display_stack(outFile);
+            symbolAndAssembly.display_symbol_table(outFile);
+            
+            // Restore cout
+            outFile.close();
+        } else {
+            cerr << "Error opening debug output file\n";
+        }
+    }
 
     //reads all values from the file
     void readFile(const string& input, const int& headerNumber) {
@@ -634,8 +992,8 @@ public:
         // <Assign> ::= <Identifier> = <Expression> ;
         // <If> ::= if ( <Condition> )  <Statement> <if> 
         // <Return> ::= return <r>
-        // <Print> ::= print ( <Expression>)
-        // <Scan> ::= scan ( <IDs> );
+        // <Print> ::= print ( <Expression> ) ;
+        // <Scan> ::= scan ( <IDs> ) ;
         // <While> ::= while ( <Condition> ) <Statement> endwhile
         if(token.type == TokenType::SEPARATOR && token.value == "{"){
             cout << "<Compound>" << endl;
@@ -691,7 +1049,14 @@ public:
                 token = lexer(true);
                 if(token.type == TokenType::SEPARATOR && token.value == ")"){
                     cout << ")" << endl;
-                    cout << "End of Print" << endl;
+                    token = lexer(true);
+                    if(token.type == TokenType::SEPARATOR && token.value == ";"){
+                        cout << ";" << endl;
+                        cout << "End of Print" << endl;
+                    }
+                    else{
+                        cout << "Error in ';' for <Scan>";
+                    }
                 }
                 else{
                     cout << "Error in beginning ')' for <Print>";
@@ -744,10 +1109,10 @@ public:
                     cout << ") <Statement>" << endl;
                     Statement();
                     token = lexer(true);
-                    // ADD IN JMP FUNCTION -------------------------------------------
+
                     symbolAndAssembly.JMP(instruction_Addr);
-                    symbolAndAssembly.generate_instruction("JMP", instruction_Addr);
                     symbolAndAssembly.back_patch(symbolAndAssembly.getInstructionAddr());
+                    symbolAndAssembly.generate_instruction("LABEL");
                     
                     if(token.type == TokenType::KEYWORD && token.value == "endwhile"){
                     cout << "endwhile" << endl;
@@ -774,9 +1139,8 @@ public:
                     cout << "= <Expression> ;" << endl;
                     Expression();
                     token = lexer(true);
-                    // REPLACE POPM
                     int memoryLoc = symbolAndAssembly.getAddress(var);
-                    symbolAndAssembly.POPM(memoryLoc);
+                    symbolAndAssembly.POPM(memoryLoc, var);
                     if(token.type == TokenType::SEPARATOR && token.value == ";"){
                         cout << ";" << endl;
                         cout << "End of Assign" << endl;
@@ -799,6 +1163,8 @@ public:
         //endif | else <Statement> endif
         Token token = lexer(true);
         if(token.type == TokenType::KEYWORD && token.value == "endif"){
+            symbolAndAssembly.back_patch(symbolAndAssembly.getInstructionAddr());
+            symbolAndAssembly.generate_instruction("LABEL");
             cout << "<if> -> endif" << endl;
         }
         else if(token.type == TokenType::KEYWORD && token.value == "else"){
@@ -806,6 +1172,8 @@ public:
             Statement();
             token = lexer(true);
             if(token.type == TokenType::KEYWORD && token.value == "endif"){
+                symbolAndAssembly.back_patch(symbolAndAssembly.getInstructionAddr());
+                symbolAndAssembly.generate_instruction("LABEL");
                 cout << "endif" << endl;
                 cout << "End of <If>" << endl;
             }
@@ -848,7 +1216,6 @@ public:
         cout << "<Condition> -> <Expression> <Relop> <Expression>" << endl;
         Expression();
         Relop();
-        Expression();
     }
 
     void Relop(){
@@ -858,47 +1225,42 @@ public:
             (token.value == "==" || token.value == "!=" || token.value == ">" || token.value == "<" || token.value == "<=" || token.value == "=>")){
             cout << "<Relop> -> == | != | > | < | <= | =>" << endl;
             
+            Expression();
             if(token.value == ">"){
                 symbolAndAssembly.GRT();
                 symbolAndAssembly.generate_instruction("GRT");
-                symbolAndAssembly.push_JMPstack(); /* another stack need */
-                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
-                symbolAndAssembly.generate_instruction("JMP0");
+                symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
+                symbolAndAssembly.JMP0();
             }
             else if(token.value == "<"){
                 symbolAndAssembly.LES();
                 symbolAndAssembly.generate_instruction("LES");
-                symbolAndAssembly.push_JMPstack(); /* another stack need */
-                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
-                symbolAndAssembly.generate_instruction("JMP0");
+                symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
+                symbolAndAssembly.JMP0();
             }
             else if(token.value == "=="){
                 symbolAndAssembly.EQU();
                 symbolAndAssembly.generate_instruction("EQU");
-                symbolAndAssembly.push_JMPstack(); /* another stack need */
-                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
-                symbolAndAssembly.generate_instruction("JMP0");
+                symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
+                symbolAndAssembly.JMP0();
             }
             else if(token.value == "!="){
                 symbolAndAssembly.NEQ();
                 symbolAndAssembly.generate_instruction("NEQ");
-                symbolAndAssembly.push_JMPstack(); /* another stack need */
-                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
-                symbolAndAssembly.generate_instruction("JMP0");
+                symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
+                symbolAndAssembly.JMP0();
             }
             else if(token.value == ">="){
                 symbolAndAssembly.GEQ();
                 symbolAndAssembly.generate_instruction("GEQ");
-                symbolAndAssembly.push_JMPstack(); /* another stack need */
-                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
-                symbolAndAssembly.generate_instruction("JMP0");
+                symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
+                symbolAndAssembly.JMP0();
             }
             else if(token.value == "<="){
                 symbolAndAssembly.LEQ();
                 symbolAndAssembly.generate_instruction("LEQ");
-                symbolAndAssembly.push_JMPstack(); /* another stack need */
-                symbolAndAssembly.JMP0(symbolAndAssembly.getInstructionAddr());
-                symbolAndAssembly.generate_instruction("JMP0");
+                symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
+                symbolAndAssembly.JMP0();
             }
         }
         else{

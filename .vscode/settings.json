@@ -3,6 +3,8 @@
         "iostream": "cpp",
         "stack": "cpp",
         "string": "cpp",
-        "optional": "cpp"
+        "optional": "cpp",
+        "xstring": "cpp",
+        "utility": "cpp"
     }
 }
