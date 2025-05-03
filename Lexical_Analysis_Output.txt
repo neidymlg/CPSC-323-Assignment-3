@@ -5,41 +5,32 @@ Output:
                    separator                          $$
                    separator                          $$
                    keyword                            integer
-                   identifier                         i
+                   identifier                         x
                    separator                          ,
-                   identifier                         max
-                   separator                          ,
-                   identifier                         sum
+                   identifier                         y
                    separator                          ;
                    separator                          $$
-                   identifier                         i
+                   identifier                         x
                    operator                           =
                    integer                            2
                    separator                          ;
-                   identifier                         max
-                   operator                           =
-                   integer                            1
+                   keyword                            scan
+                   separator                          (
+                   identifier                         y
+                   separator                          )
                    separator                          ;
                    keyword                            if
                    separator                          (
-                   identifier                         i
+                   identifier                         x
                    operator                           <
-                   identifier                         max
+                   identifier                         y
                    separator                          )
                    separator                          {
-                   identifier                         sum
-                   operator                           =
-                   identifier                         sum
-                   operator                           +
-                   identifier                         i
-                   separator                          ;
-                   identifier                         i
-                   operator                           =
-                   identifier                         i
-                   operator                           +
-                   integer                            1
+                   keyword                            print
+                   separator                          (
+                   identifier                         x
+                   separator                          )
                    separator                          ;
                    separator                          }
                    keyword                            endif
-                   separator                          ;
                    separator                          $$

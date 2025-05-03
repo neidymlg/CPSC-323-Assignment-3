@@ -113,7 +113,7 @@ public:
     //Add a variable into the Symbol table
     void generate_symbol(string var){
         SymbolTable[var].first = memoryAddr;
-        SymbolTable[var].second = nullopt;
+        SymbolTable[var].second = nullopt;// -9999; //nullopt; chanding to -9999 for testing
         memoryAddr++;
     }
 
@@ -163,6 +163,8 @@ public:
                     SymbolTable[var].second = SymbolTable[value].second;
                 }
                 else{
+                    // Handle the case where the value is not found in the symbol table
+                    cout << "Error: Variable " << value << " not found in symbol table." << endl;
 
                 }
             }
@@ -173,11 +175,28 @@ public:
 
     // ????????????????????????
     void SOUT(){
-        // Pops the value from TOS and outputs it to the standard output
+        // Pops the value from the top of the stack and prints it and adds instruction
+        if (!Stack.empty()) {
+            string value = Stack.top();
+            Stack.pop();
+            if (SymbolTable.find(value) != SymbolTable.end()) {
+                cout << "Output: " << SymbolTable[value].second.value_or(-9999) << endl;
+            } else {
+                cout << "Output: " << value << endl;
+            }
+            generate_instruction("SOUT");
+        }
     }
 
-    void SIN(){
-        //Get the value from the standard input and place in onto the TOS
+    void SIN(string var){
+        int value;
+        cin >> value;
+        // Push the input value onto the stack
+        Stack.push(to_string(value));
+        // Store the value in the symbol table
+        generate_symbol("SIN");
+        int address = getAddress(var);
+        POPM(address, var);
     }
 
     void A(){
@@ -199,7 +218,8 @@ public:
                     firstVal = SymbolTable[first].second.value();
                 }
                 else{
-
+                    // handle case uf not found
+                    cout << "error var:" << first << endl;
                 }
             }
 
@@ -211,6 +231,7 @@ public:
                     secondVal = SymbolTable[second].second.value();
                 }
                 else{
+
 
                 }
             }
@@ -238,6 +259,8 @@ public:
                     firstVal = SymbolTable[first].second.value();
                 }
                 else{
+                    // most likely change
+                    cout << "error var:" << first << endl;
 
                 }
             }
@@ -411,7 +434,7 @@ public:
                     secondVal = SymbolTable[second].second.value();
                 }
                 else{
-
+                    // 
                 }
             }
 
@@ -1046,6 +1069,7 @@ public:
             if(token.type == TokenType::SEPARATOR && token.value == "("){
                 cout << "( <Expression>" << endl;
                 Expression();
+                symbolAndAssembly.SOUT();
                 token = lexer(true);
                 if(token.type == TokenType::SEPARATOR && token.value == ")"){
                     cout << ")" << endl;
@@ -1071,10 +1095,27 @@ public:
             cout << "<Scan> -> scan ( <IDs> );" << endl;
             cout << "<Scan> -> scan" << endl;
             token = lexer(true);
+
             if(token.type == TokenType::SEPARATOR && token.value == "("){
                 cout << "( <IDs>" << endl;
                 IDS();
                 token = lexer(true);
+
+                if(token.type == TokenType::IDENTIFIER){
+                    string var = token.value; // Save the variable
+                    if(!symbolAndAssembly.getAddress(var)){
+                        cout << "Error: Variable " << var << " not found in symbol table." << endl;
+                    }
+                    else{
+                        symbolAndAssembly.SIN(var);
+                    }
+                    token = lexer(true);
+
+                }
+                else{
+                    cout << "Error in <IDs> for <Scan>";
+                }
+
                 if(token.type == TokenType::SEPARATOR && token.value == ")"){
                     cout << ")" << endl;
                     token = lexer(true);
@@ -1094,6 +1135,7 @@ public:
                 cout << "Error in beginning '(' for <Scan>";
             }
         }
+    
         else if(token.type == TokenType::KEYWORD && token.value == "while"){
             cout << "<While>" << endl;
             cout << "<While> -> while ( <Condition> ) <Statement> endwhile" << endl;
