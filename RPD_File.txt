@@ -27,10 +27,10 @@ ADDR	OPERATOR	OPERAND
 === SYMBOL TABLE ===
 NAME		ADDRESS		Type		Value
 --------------------------------
-bool2		10004		Boolean		-
 bool4		10006		Boolean		-
+bool3		10005		Boolean		-
+i		10000		Integer		11
+max		10001		Integer		0
 bool		10003		Boolean		-
 sum		10002		Integer		13
-bool3		10005		Boolean		-
-max		10001		Integer		0
-i		10000		Integer		11
+bool2		10004		Boolean		-

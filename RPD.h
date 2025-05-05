@@ -278,11 +278,64 @@ public:
     void SOUT(){
         // Pops the value from the top of the stack and prints it and adds instruction
         //generate_instruction("SOUT");
-
+        if (Stack.empty()) {
+            throw runtime_error("Stack underflow");
+        }
+        Value value = Stack.top();
+        Stack.pop();
+        switch(value.type) {
+            case Value::INTEGER:
+                cout << "Output: " << value.intVal.value() << endl;
+                break;
+            case Value::BOOLEAN:
+                cout << "Output: " << (value.boolVal.value() ? "true" : "false") << endl;
+                break;
+            case Value::REAL: // most likely delete (i forgot if he said no real anymore)
+                cout << "Output: " << value.realVal.value() << endl;
+                break;
+            case Value::IDENTIFIER:
+                cout << "Output: " << value.identifier << endl;
+                break;
+            default:
+                cout << "Output: Undefined" << endl;
+        }
+        generate_instruction("SOUT");
     }
 
     void SIN(string var){
         //generate_instruction("SIN");
+        auto it = SymbolTable.find(var);
+
+        if (it == SymbolTable.end()) {
+            throw runtime_error("Undefined variable: " + var);
+        }
+        Value& expectedValue = it->second.value;
+        Value inputValue;
+        cout << "Enter value for " << var << ": ";
+
+        if (expectedValue.type == Value::BOOLEAN) {
+            string userInput;
+            cin >> userInput;
+            if (userInput == "true") { // maybe change to "0" and "1"
+                inputValue = Value(true);
+            } else if (userInput == "false") {
+                inputValue = Value(false);
+            } else {
+                throw runtime_error("Invalid boolean input (must be 'true' or 'false')");
+            }
+        } else if (expectedValue.type == Value::INTEGER) {
+            int num;
+            cin >> num;
+            inputValue = Value(num);
+        } else if (expectedValue.type == Value::REAL) {
+            double num;
+            cin >> num;
+            inputValue = Value(num);
+        } else {
+            throw runtime_error("Unsupported type for SIN");
+        }
+        SymbolTable[var].value = inputValue;
+        generate_instruction("SIN", SymbolTable[var].memoryADDR);
     }
 
     void A() {
