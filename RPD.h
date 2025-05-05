@@ -12,6 +12,45 @@
 #include "TokenType.h"
 using namespace std;
 
+struct Value {
+    enum Type { INTEGER, BOOLEAN, IDENTIFIER, REAL, UNDEFINED };
+    Type type;
+    optional<int> intVal;
+    optional<bool> boolVal;
+    optional<double> realVal;
+    string identifier;
+
+    // Default constructor
+    Value() : type(UNDEFINED) {}
+
+    // Constructors for typed but valueless
+    Value(Type t) : type(t) {
+        switch(t) {
+            case INTEGER: intVal = nullopt; break;
+            case BOOLEAN: boolVal = nullopt; break;
+            case REAL: realVal = nullopt; break;
+            default: break;
+        }
+    }
+
+    // Regular constructors
+    Value(int v) : type(INTEGER), intVal(v) {}
+    Value(bool v) : type(BOOLEAN), boolVal(v) {}
+    Value(double v) : type(REAL), realVal(v) {}
+    Value(string id) : type(IDENTIFIER), identifier(id) {}
+
+    bool hasValue() const {
+        switch(type) {
+            case INTEGER: return intVal.has_value();
+            case BOOLEAN: return boolVal.has_value();
+            case REAL: return realVal.has_value();
+            case IDENTIFIER: return !identifier.empty();
+            default: return false;
+        }
+    }
+};
+
+
 // Redirects the output to a file
 // changes cout to a file stream
 class OutputRedirector {
@@ -50,15 +89,45 @@ private:
 
     vector<Instruction> InstructTable;
 
-    stack<string> Stack;
+    struct SymbolInfo {
+        int memoryADDR;
+        Value value;
+    };
+
+
+    unordered_map<string, SymbolInfo> SymbolTable;
+    
+    stack<Value> Stack;
     stack<int> JumpStack;
 
-    unordered_map<string, pair<int, optional<int>>> SymbolTable;
-    unordered_map<string, int> varTable;
+    int getValue(const Value& val) {
+        switch (val.type) {
+            case Value::INTEGER:
+                if (!val.intVal.has_value()) {
+                    throw runtime_error("Integer value not initialized");
+                }
+                return val.intVal.value();
+            case Value::BOOLEAN:
+                if (!val.boolVal.has_value()) {
+                    throw runtime_error("Boolean value not initialized");
+                }
+                return val.boolVal.value();
+            case Value::IDENTIFIER: {
+                auto it = SymbolTable.find(val.identifier);
+                if (it == SymbolTable.end()) {
+                    throw runtime_error("Undefined identifier: " + val.identifier);
+                }
+                return getValue(it->second.value);
+            }
+            default:
+                throw runtime_error("Invalid value type for arithmetic operation");
+        }
+    }
+    
 public:
     Symbol_and_Assembly(){
         //reserve 1000 spaces in vector for Instruction table
-        InstructTable.reserve(1000);
+        InstructTable.reserve(100);
     }
 
      void display_instructions(ostream& out) {
@@ -70,7 +139,7 @@ public:
             if (instr.Operand.has_value()) {
                 out << instr.Operand.value();
             } else {
-                out << "nullopt";
+                out << "-";
             }
             out << "\n";
         }
@@ -84,7 +153,7 @@ public:
         // Create a temporary stack to preserve original
         auto tempStack = Stack;
         while (!tempStack.empty()) {
-            out << tempStack.top() << "\n";
+            out << tempStack.top().type << "\n";
             tempStack.pop();
         }
         out << "BOTTOM\n";
@@ -92,34 +161,70 @@ public:
 
     void display_symbol_table(ostream& out) {
         out << "\n=== SYMBOL TABLE ===\n";
-        out << "NAME\t\tADDRESS\t\tVALUE\n";
+        out << "NAME\t\tADDRESS\t\tType\t\tValue\n";
         out << "--------------------------------\n";
         for (const auto& entry : SymbolTable) {
-            out << entry.first << "\t\t" << entry.second.first << "\t\t";
-            if (entry.second.second.has_value()) {
-                out << entry.second.second.value();
-            } else {
-                out << "nullopt";
+            out << entry.first << "\t\t" << entry.second.memoryADDR;
+    
+            switch (entry.second.value.type) {
+                case Value::INTEGER:
+                    out << "\t\t" << "Integer" << "\t\t";
+                    if (entry.second.value.intVal.has_value()) {
+                        out << entry.second.value.intVal.value() << endl;
+                    } else {
+                        out << "-" << endl;
+                    }
+                    break;
+    
+                case Value::BOOLEAN:
+                    out << "\t\t" << "Boolean" << "\t\t";
+                    if (entry.second.value.boolVal.has_value()) {
+                        out << (entry.second.value.boolVal.value() ? "true" : "false") << endl;
+                    } else {
+                        out << "-" << endl;
+                    }
+                    break;
+    
+                case Value::IDENTIFIER:
+                    out << "\t\t" << "Identifier" << "\t\t";
+                    if (!entry.second.value.identifier.empty()) {
+                        out << entry.second.value.identifier << endl;
+                    } else {
+                        out << "-" << endl;
+                    }
+                    break;
+    
+                case Value::REAL:
+                    out << "\t\t" << "Real" << "\t\t";
+                    if (entry.second.value.realVal.has_value()) {
+                        out << entry.second.value.realVal.value() << endl;
+                    } else {
+                        out << "-" << endl;
+                    }
+                    break;
+    
+                default:
+                    out << "\t\t" << "Undefined" << "\t\t-\n";
+                    break;
             }
-            out << "\n";
         }
     }
-
+    
     //Add into Instruction Table
     void generate_instruction(string op, optional<int> oprnd = nullopt){
         InstructTable.emplace_back(instructionAddr++, op, oprnd);
     }
 
     //Add a variable into the Symbol table
-    void generate_symbol(string var){
-        SymbolTable[var].first = memoryAddr;
-        SymbolTable[var].second = nullopt;// -9999; //nullopt; chanding to -9999 for testing
+    void generate_symbol(string var, Value value){
+        SymbolTable[var].memoryADDR = memoryAddr;
+        SymbolTable[var].value =  value; 
         memoryAddr++;
     }
 
     // Returns Variable Memory
     int getAddress(string var){
-        return SymbolTable[var].first;
+        return SymbolTable[var].memoryADDR;
     }
 
     int getInstructionAddr(){
@@ -139,478 +244,280 @@ public:
     //PUSHI
     void PUSHI(int intValue){
         //Pushes the {Integer Value} onto the Top of the Stack (TOS)
-        Stack.push(to_string(intValue));
+        Stack.push(Value(intValue));
     }
-    
+
+    void PUSHB(bool boolValue) {
+        Stack.push(Value(boolValue));
+    }
+
     //PUSHM
     void PUSHM(string var){
         //Pushes the value stored at {ML} onto TOS
-        Stack.push(var);
+        auto it = SymbolTable.find(var);
+        if (it != SymbolTable.end()) {
+            Stack.push(it->second.value);
+        } else {
+            throw runtime_error("Undefined variable: " + var);
+        }
     }
 
     void POPM(int memoryLoc, string var){
         //Pops the value from the top of the stack and stores it at {ML}
-        if(!Stack.empty()){
-            string value = Stack.top();
+        if(Stack.empty()){
+            throw runtime_error("Stack underflow");
+        }
+            Value stackValue = Stack.top();
             Stack.pop();
 
-            try{
-                int intValue = stoi(value);
-                SymbolTable[var].second = intValue;
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[value].second != nullopt){
-                    SymbolTable[var].second = SymbolTable[value].second;
-                }
-                else{
-                    // Handle the case where the value is not found in the symbol table
-                    cout << "Error: Variable " << value << " not found in symbol table." << endl;
-
-                }
-            }
+            SymbolTable[var].value = stackValue;
 
             generate_instruction("POPM", memoryLoc);
-        }
     }
 
-    // ????????????????????????
     void SOUT(){
         // Pops the value from the top of the stack and prints it and adds instruction
-        if (!Stack.empty()) {
-            string value = Stack.top();
-            Stack.pop();
-            if (SymbolTable.find(value) != SymbolTable.end()) {
-                cout << "Output: " << SymbolTable[value].second.value_or(-9999) << endl;
-            } else {
-                cout << "Output: " << value << endl;
-            }
-            generate_instruction("SOUT");
-        }
+        //generate_instruction("SOUT");
+
     }
 
     void SIN(string var){
-        int value;
-        cin >> value;
-        // Push the input value onto the stack
-        Stack.push(to_string(value));
-        // Store the value in the symbol table
-        generate_symbol("SIN");
-        int address = getAddress(var);
-        POPM(address, var);
+        //generate_instruction("SIN");
     }
 
-    void A(){
-        // Pop the first two items from stack and push the sum onto the TOS
-        if (Stack.size() >= 2) {
-            string first = Stack.top();
-            Stack.pop();
-            string second = Stack.top();
-            Stack.pop();
-
-            int firstVal;
-            int secondVal;
-
-            try{
-                firstVal = stoi(first); 
+    void A() {
+        if (Stack.size() < 2) {
+            return;
+        }
+    
+        Value first = Stack.top(); 
+        Stack.pop();
+        Value second = Stack.top(); 
+        Stack.pop();
+    
+        try {
+            int firstVal = getValue(first);
+            int secondVal = getValue(second);
+            if(first.type == Value::BOOLEAN && second.type == Value::BOOLEAN){
+                Stack.push(Value(firstVal || secondVal));
             }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[first].second.has_value()){
-                    firstVal = SymbolTable[first].second.value();
-                }
-                else{
-                    // handle case uf not found
-                    cout << "error var:" << first << endl;
-                }
+            else{
+                Stack.push(Value(secondVal + firstVal));
             }
-
-            try{
-                secondVal = stoi(second); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[second].second.has_value()){
-                    secondVal = SymbolTable[second].second.value();
-                }
-                else{
-
-
-                }
-            }
-
-            Stack.push(to_string(secondVal + firstVal));
-        } 
+        } catch (const std::exception& e) {
+            throw runtime_error("Addition error");
+        }
     }
 
     void S(){
         // Pop the first two items from stack and push the difference onto the TOS
-        if (Stack.size() >= 2) {
-            string first = Stack.top();
-            Stack.pop();
-            string second = Stack.top();
-            Stack.pop();
-
-            int firstVal;
-            int secondVal;
-
-            try{
-                firstVal = stoi(first); 
+        if (Stack.size() < 2) {
+            return;
+        }
+    
+        Value first = Stack.top(); 
+        Stack.pop();
+        Value second = Stack.top(); 
+        Stack.pop();
+    
+        try {
+            int firstVal = getValue(first);
+            int secondVal = getValue(second);
+            if(first.type == Value::BOOLEAN && second.type == Value::BOOLEAN ){
+                Stack.push(Value(secondVal != firstVal));
+            }           
+            else{
+                Stack.push(Value(secondVal - firstVal));
             }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[first].second.has_value()){
-                    firstVal = SymbolTable[first].second.value();
-                }
-                else{
-                    // most likely change
-                    cout << "error var:" << first << endl;
-
-                }
-            }
-
-            try{
-                secondVal = stoi(second); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[second].second.has_value()){
-                    secondVal = SymbolTable[second].second.value();
-                }
-                else{
-
-                }
-            }
-            
-            Stack.push(to_string(secondVal - firstVal));
-        } 
+        } catch (const std::exception& e) {
+            throw runtime_error("Subtraction error");
+        }
     }
 
     void M(){
         // Pop the first two items from stack and push the product onto the TOS
-        if (Stack.size() >= 2) {
-            string first = Stack.top();
-            Stack.pop();
-            string second = Stack.top();
-            Stack.pop();
-
-            int firstVal;
-            int secondVal;
-
-            try{
-                firstVal = stoi(first); 
+        if (Stack.size() < 2) {
+            return;
+        }
+    
+        Value first = Stack.top(); 
+        Stack.pop();
+        Value second = Stack.top(); 
+        Stack.pop();
+    
+        try {
+            int firstVal = getValue(first);
+            int secondVal = getValue(second);
+            if(first.type == Value::BOOLEAN && second.type == Value::BOOLEAN ){
+                Stack.push(Value(firstVal && secondVal));
+            }           
+            else{
+                Stack.push(Value(secondVal * firstVal));
             }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[first].second.has_value()){
-                    firstVal = SymbolTable[first].second.value();
-                }
-                else{
-
-                }
-            }
-
-            try{
-                secondVal = stoi(second); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[second].second.has_value()){
-                    secondVal = SymbolTable[second].second.value();
-                }
-                else{
-
-                }
-            }
-            
-            Stack.push(to_string(secondVal * firstVal));
+        } catch (const std::exception& e) {
+            throw runtime_error("Multiplication error");
         }
     }
 
     void D(){
         // Pop the first two items from stack and push the result onto the TOS
-        if (Stack.size() >= 2) {
-            string first = Stack.top();
-            Stack.pop();
-            string second = Stack.top();
-            Stack.pop();
-
-            int firstVal;
-            int secondVal;
-
-            try{
-                firstVal = stoi(first); 
+        if (Stack.size() < 2) {
+            return;
+        }
+    
+        Value first = Stack.top(); 
+        Stack.pop();
+        Value second = Stack.top(); 
+        Stack.pop();
+    
+        try {
+            int firstVal = getValue(first);
+            int secondVal = getValue(second);
+            if(first.type == Value::BOOLEAN && second.type == Value::BOOLEAN){
+                Stack.push(Value(secondVal == firstVal));
             }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[first].second.has_value()){
-                    firstVal = SymbolTable[first].second.value();
-                }
-                else{
-
-                }
+            else if(firstVal == 0){
+                Stack.push(Value());
+            }           
+            else{
+                Stack.push(Value(secondVal / firstVal));
             }
-
-            try{
-                secondVal = stoi(second); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[second].second.has_value()){
-                    secondVal = SymbolTable[second].second.value();
-                }
-                else{
-
-                }
-            }
-            
-            if (firstVal != 0) {
-                Stack.push(to_string(secondVal / firstVal));
-            } else {
-               Stack.push("NAN");
-            }
-        } 
+        } catch (const std::exception& e) {
+            throw runtime_error("Division error");
+        }
     }
 
     void GRT(){
         //Pops two items from the stack and pushes 1 onto TOS if second item is larger otherwise push 0
-        if (Stack.size() >= 2) {
-            string first = Stack.top();
-            Stack.pop();
-            string second = Stack.top();
-            Stack.pop();
-
-            int firstVal;
-            int secondVal;
-
-            try{
-                firstVal = stoi(first); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[first].second.has_value()){
-                    firstVal = SymbolTable[first].second.value();
-                }
-                else{
-
-                }
-            }
-
-            try{
-                secondVal = stoi(second); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[second].second.has_value()){
-                    secondVal = SymbolTable[second].second.value();
-                }
-                else{
-
-                }
-            }
-        
-            Stack.push(secondVal > firstVal ? "1" : "0");
-        } else {
+        if (Stack.size() < 2) {
+            return;
+        }
+    
+        Value first = Stack.top(); 
+        Stack.pop();
+        Value second = Stack.top(); 
+        Stack.pop();
+    
+        try {
+            int firstVal = getValue(first);
+            int secondVal = getValue(second);
+            Stack.push(Value(secondVal > firstVal));
+        } catch (const std::exception& e) {
+            throw runtime_error("GRT error");
         }
     }
 
     void LES() {
         //Pops two items from the stack and pushes 1 onto TOS if the second item is smaller than first item otherwise push 0
-        if (Stack.size() >= 2) {
-            string first = Stack.top();
-            Stack.pop();
-            string second = Stack.top();
-            Stack.pop();
-
-            int firstVal;
-            int secondVal;
-
-            try{
-                firstVal = stoi(first); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[first].second.has_value()){
-                    firstVal = SymbolTable[first].second.value();
-                }
-                else{
-
-                }
-            }
-
-            try{
-                secondVal = stoi(second); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[second].second.has_value()){
-                    secondVal = SymbolTable[second].second.value();
-                }
-                else{
-                    // 
-                }
-            }
-
-            Stack.push(secondVal < firstVal ? "1" : "0");
-        } else {
+        if (Stack.size() < 2) {
+            return;
+        }
+    
+        Value first = Stack.top(); 
+        Stack.pop();
+        Value second = Stack.top(); 
+        Stack.pop();
+    
+        try {
+            int firstVal = getValue(first);
+            int secondVal = getValue(second);
+            Stack.push(Value(secondVal < firstVal));
+        } catch (const std::exception& e) {
+            throw runtime_error("LES error");
         }
     }
 
     void EQU() {
         //Pops two items from the stack and pushes 1 onto TOS if they are equal otherwise push 0
-        if (Stack.size() >= 2) {
-            string first = Stack.top();
-            Stack.pop();
-            string second = Stack.top();
-            Stack.pop();
-
-            int firstVal;
-            int secondVal;
-
-            try{
-                firstVal = stoi(first); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[first].second.has_value()){
-                    firstVal = SymbolTable[first].second.value();
-                }
-                else{
-
-                }
-            }
-
-            try{
-                secondVal = stoi(second); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[second].second.has_value()){
-                    secondVal = SymbolTable[second].second.value();
-                }
-                else{
-
-                }
-            }
-
-            Stack.push(secondVal == firstVal ? "1" : "0");
-        } else {
+        if (Stack.size() < 2) {
+            return;
+        }
+    
+        Value first = Stack.top(); 
+        Stack.pop();
+        Value second = Stack.top(); 
+        Stack.pop();
+    
+        try {
+            int firstVal = getValue(first);
+            int secondVal = getValue(second);
+            Stack.push(Value(secondVal == firstVal));
+        } catch (const std::exception& e) {
+            throw runtime_error("EQU error");
         }
     }
 
     void NEQ() {
         //Pops two items from the stack and pushes 1 onto TOS if they are not equal otherwise push 0
-        if (Stack.size() >= 2) {
-            string first = Stack.top();
-            Stack.pop();
-            string second = Stack.top();
-            Stack.pop();
-
-            int firstVal;
-            int secondVal;
-
-            try{
-                firstVal = stoi(first); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[first].second.has_value()){
-                    firstVal = SymbolTable[first].second.value();
-                }
-                else{
-
-                }
-            }
-
-            try{
-                secondVal = stoi(second); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[second].second.has_value()){
-                    secondVal = SymbolTable[second].second.value();
-                }
-                else{
-
-                }
-            }
-
-            Stack.push(secondVal != firstVal ? "1" : "0");
-        } else {
+        if (Stack.size() < 2) {
+            return;
         }
+    
+        Value first = Stack.top(); 
+        Stack.pop();
+        Value second = Stack.top(); 
+        Stack.pop();
+    
+        try {
+            int firstVal = getValue(first);
+            int secondVal = getValue(second);
+            Stack.push(Value(secondVal != firstVal));
+        } catch (const std::exception& e) {
+            throw runtime_error("NEQ error");
+        }
+
     }
 
     void GEQ() {
         //Pops two items from the stack and pushes 1 onto TOS if second item is larger or equal otherwise push 0
-        if (Stack.size() >= 2) {
-            string first = Stack.top();
-            Stack.pop();
-            string second = Stack.top();
-            Stack.pop();
-
-            int firstVal;
-            int secondVal;
-
-            try{
-                firstVal = stoi(first); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[first].second.has_value()){
-                    firstVal = SymbolTable[first].second.value();
-                }
-                else{
-
-                }
-            }
-
-            try{
-                secondVal = stoi(second); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[second].second.has_value()){
-                    secondVal = SymbolTable[second].second.value();
-                }
-                else{
-
-                }
-            }
-
-            Stack.push(secondVal >= firstVal ? "1" : "0");
-        } else {
+        if (Stack.size() < 2) {
+            return;
         }
+    
+        Value first = Stack.top(); 
+        Stack.pop();
+        Value second = Stack.top(); 
+        Stack.pop();
+    
+        try {
+            int firstVal = getValue(first);
+            int secondVal = getValue(second);
+            Stack.push(Value(secondVal >= firstVal));
+        } catch (const std::exception& e) {
+            throw runtime_error("GEQ error");
+        }
+
     }
 
     void LEQ() {
         //Pops two items from the stack and pushes 1 onto TOS if second item is Less or equal otherwise push 0
-        if (Stack.size() >= 2) {
-            string first = Stack.top();
-            Stack.pop();
-            string second = Stack.top();
-            Stack.pop();
-
-            int firstVal;
-            int secondVal;
-
-            try{
-                firstVal = stoi(first); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[first].second.has_value()){
-                    firstVal = SymbolTable[first].second.value();
-                }
-                else{
-
-                }
-            }
-
-            try{
-                secondVal = stoi(second); 
-            }
-            catch (const invalid_argument& e) {
-                if(SymbolTable[second].second.has_value()){
-                    secondVal = SymbolTable[second].second.value();
-                }
-                else{
-
-                }
-            }
-
-            Stack.push(secondVal <= firstVal ? "1" : "0");
-        } else {
+        if (Stack.size() < 2) {
+            return;
+        }
+    
+        Value first = Stack.top(); 
+        Stack.pop();
+        Value second = Stack.top(); 
+        Stack.pop();
+    
+        try {
+            int firstVal = getValue(first);
+            int secondVal = getValue(second);
+            Stack.push(Value(secondVal <= firstVal));
+        } catch (const std::exception& e) {
+            throw runtime_error("LEQ error");
         }
     }
 
     void JMP0(){
-        //Pop the stack and if the value is 0 then jmp to {IL}
-        if (Stack.size() >= 1){
-            string value = Stack.top();
-            Stack.pop();
-            if(value == "0"){
-                generate_instruction("JMP0");
-            }
+    //Pop the stack and if the value is 0 then jmp to {IL}
+        if (Stack.empty()){
+            return;
+        }
+        Value value = Stack.top();
+        Stack.pop();
+        if(getValue(value) == 0){
+            generate_instruction("JMP0");
         }
     }
 
@@ -622,8 +529,6 @@ public:
     void push_JMPstack(int instructionLoc){
         JumpStack.push(instructionLoc);
     }
-
-    void LABEL(){}
 
 };
 
@@ -713,10 +618,9 @@ public:
         if (outFile.is_open()) {
             // Display all components
             symbolAndAssembly.display_instructions(outFile);
-            symbolAndAssembly.display_stack(outFile);
+            //symbolAndAssembly.display_stack(outFile);
             symbolAndAssembly.display_symbol_table(outFile);
             
-            // Restore cout
             outFile.close();
         } else {
             cerr << "Error opening debug output file\n";
@@ -812,7 +716,7 @@ public:
         if (token.type == TokenType::KEYWORD && token.value == "function") {
             cout << "<Function> -> function <Identifier> ( <Opt Parameter List> ) <Opt Declaration List> <Body>" << endl;
             cout << "<Function> -> function <Identifier>" << endl;   
-            Identifier();
+            Identifier(Value::UNDEFINED);
             token = lexer(true);
             if(token.type == TokenType::SEPARATOR && token.value == "("){
                 cout << "( <Opt Parameter List>" << endl;   
@@ -877,14 +781,24 @@ public:
         Qualifier();
     }
 
-    void Qualifier(){
+    Value Qualifier(){
         // integer | boolean | real
         Token token = lexer(true);
-        if(token.type == TokenType::KEYWORD && (token.value == "integer" || token.value == "boolean" || token.value == "real")){
+        if(token.type == TokenType::KEYWORD && token.value == "integer"){
             cout << "<Qualifier> -> integer | boolean | real" << endl;
+            return Value(Value::INTEGER);
+        }
+        else if(token.type == TokenType::KEYWORD && token.value == "boolean"){
+            cout << "<Qualifier> -> integer | boolean | real" << endl;
+            return Value(Value::BOOLEAN);
+        }
+        else if(token.type == TokenType::KEYWORD && token.value == "real"){
+            cout << "<Qualifier> -> integer | boolean | real" << endl;
+            return Value(Value::REAL);
         }
         else {
             cout << "Error: Invalid Qualifier. Expected token type of integer, boolean, or real";
+            return "";
         }
     }
 
@@ -949,15 +863,21 @@ public:
     void Declaration(){
         // <Qualifier > <IDs>
         cout << "<Declaration> -> <Qualifier> <IDs>" << endl;
-        Qualifier();
-        IDS();
+        Value value = Qualifier();
+        IDS(value);
     }
 
+    // Duplicate IDS, Identifier, id ===============================================
     void IDS(){
-        cout << "<IDs> -> <Identifier> <id>" << endl;
-        // <Identifier> <id>
         Identifier();
         id();
+    }
+
+    void IDS(Value value){
+        cout << "<IDs> -> <Identifier> <id>" << endl;
+        // <Identifier> <id>
+        Identifier(value);
+        id(value);
     }
 
     void id(){
@@ -974,17 +894,42 @@ public:
         }
     }
 
+    void id(Value value){
+        //  (ε | , <IDs>)
+        Token token = lexer();
+        currentIndex--;
+        if(token.type == TokenType::SEPARATOR && token.value == ","){
+            Token token = lexer(true);
+            cout << "<id> -> , <IDs>" << endl;
+            IDS(value);
+        }
+        else{
+            cout << "<id> -> ε" << endl;
+        }
+    }
+
     void Identifier(){
         // <Identifier> ::= <IDENTIFIER>
         Token token = lexer(true);
         if(token.type == TokenType::IDENTIFIER) {
             cout << "<Identifier> -> Identifier" << endl;
-            //Adds in the var (name) into the symbol table 
-            symbolAndAssembly.generate_symbol(token.value);
         } else {
             cout << "Error: Invalid Identifier. Expected token type of IDENTIFIER";
         }
     }
+
+    void Identifier(Value valueType){
+        // <Identifier> ::= <IDENTIFIER>
+        Token token = lexer(true);
+        if(token.type == TokenType::IDENTIFIER) {
+            cout << "<Identifier> -> Identifier" << endl;
+            symbolAndAssembly.generate_symbol(token.value, valueType);
+        } else {
+            cout << "Error: Invalid Identifier. Expected token type of IDENTIFIER";
+        }
+    }
+
+    // =============================================================================
 
     void Statement_List(){
         //<Statement><S>
@@ -1292,7 +1237,7 @@ public:
                 symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
                 symbolAndAssembly.JMP0();
             }
-            else if(token.value == ">="){
+            else if(token.value == "=>"){
                 symbolAndAssembly.GEQ();
                 symbolAndAssembly.generate_instruction("GEQ");
                 symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
@@ -1355,7 +1300,6 @@ public:
             Factor();
 
             if(var == "*"){
-                //ADD IN MULTIPLY or DIVIDE
                 symbolAndAssembly.M();
                 symbolAndAssembly.generate_instruction("M");
             }
@@ -1392,47 +1336,63 @@ public:
         }
     }
 
+    
     void Primary() {
-       // <Primary> ::= <INTEGER> | <REAL> | <IDENTIFIER> | true, false
-        Token token = lexer(true);
-        if (token.type == TokenType::INTEGER || token.type == TokenType::REAL || token.type == TokenType::IDENTIFIER || 
-            (token.type == TokenType::KEYWORD && (token.value == "true" || token.value == "false"))) {
+        // <Primary> ::= <Identifier> | <Integer> | <Identifier> ( <IDs> ) | ( <Expression> ) |
+        //<Real> | true | false
+         Token token = lexer(true);
+         if(token.type == TokenType::IDENTIFIER){
+            Token oldToken = token;
+             token = lexer();
+             currentIndex--;
+             if (token.type == TokenType::SEPARATOR && token.value == "("){
+                 token = lexer(true);
+                 cout << "<Identifier> ( <IDs> ) ->"; 
+                 cout << " <Identifier> (" << endl;
+                 IDS();
+ 
+                 token = lexer(true);
+                 if(token.type == TokenType::SEPARATOR && token.value == ")"){
+                     cout << "<Identifier> ( <IDs> )" << endl;
+                 }
+                 else{
+                     cout << "Error in Primary. Expected token type of ) for <Identifier> ( <IDs> )" << endl;
+                 }
+             }
+            else{
+                symbolAndAssembly.PUSHM(oldToken.value);
+                symbolAndAssembly.generate_instruction("PUSHM", symbolAndAssembly.getAddress(oldToken.value));
+                cout << "<Primary> -> <Identifier> | <Integer> | <Identifier> | true, false" << endl;
+            }
+         }
+         else if (token.type == TokenType::INTEGER || token.type == TokenType::REAL) {
             //ADD IN PUSHM for the identifier, PUSHI for the random Integers, CHANGE
-            if(token.type == TokenType::INTEGER){
-                symbolAndAssembly.PUSHI(stoi(token.value));
-                symbolAndAssembly.generate_instruction("PUSHI");
-            }
-            else if(token.type == TokenType::IDENTIFIER){
-                symbolAndAssembly.PUSHM(token.value);
-                symbolAndAssembly.generate_instruction("PUSHM", symbolAndAssembly.getAddress(token.value));
-            }
-            
-            cout << "<Primary> -> <INTEGER> | <REAL> | <IDENTIFIER> | true, false" << endl;
+            symbolAndAssembly.PUSHI(stoi(token.value));
+            symbolAndAssembly.generate_instruction("PUSHI");
+            cout << "<Primary> -> <Identifier> | <Integer> | <Identifier> | true, false" << endl;
         } 
-        else{
-            cout << "Error in Primary. Expected token type of INTEGER, REAL, IDENTIFIER, or KEYWORD true, or false";
+        else if(token.type == TokenType::KEYWORD && (token.value == "true" || token.value == "false")){
+            symbolAndAssembly.PUSHB( token.value == "true" ? true : false );
+            symbolAndAssembly.generate_instruction("PUSHB");
+            cout << "<Primary> -> <Identifier> | <Integer> | <Identifier> | true, false" << endl;
         }
-    }
+        else if (token.type == TokenType::SEPARATOR && token.value == "("){
+             cout << "( <Expression> )" << endl;
+             cout << "( <Expression> ) -> (" << endl;
+             Expression();
+             token = lexer(true);
+             if(token.type == TokenType::SEPARATOR && token.value == ")"){
+                 cout << "( <Expression> )" << endl;
+             }
+             else{
+                 cout << "Error in Primary. Expected token type of ) for <Identifier> ( <IDs> )";
+             }
+         }
+         else{
+             cout << "Error in Primary. <Identifier> | <Integer> | <Identifier> ( <IDs> ) | ( <Expression> ) | <Real> | true | false";
+         }
+     }
 
 };
 
 #endif
-// int main(){
-//     string inputFile;
-//     int headerNumber;
-//     string outputFile;
-
-//     cout << "Enter the input file name (SA_input_1.txt , SA_input_2.txt, SA_input_3.txt): ";
-//     cin >> inputFile;
-//     cout << "Enter the number of header lines to skip (3, 0, 0): ";
-//     cin >> headerNumber;
-
-//     SyntaxAnalyzer analyzer;
-//     OutputRedirector redirect("Syntax_Output.txt"); // Redirect output to the specified file
-
-//     analyzer.readFile(inputFile, headerNumber); // Read the input file
-
-//     analyzer.Rat25S(); // Start the parsing process
-
-//     return 0;
-// }

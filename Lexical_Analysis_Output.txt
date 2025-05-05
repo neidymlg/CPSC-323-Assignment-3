@@ -5,32 +5,53 @@ Output:
                    separator                          $$
                    separator                          $$
                    keyword                            integer
-                   identifier                         x
+                   identifier                         i
                    separator                          ,
-                   identifier                         y
+                   identifier                         max
+                   separator                          ,
+                   identifier                         sum
+                   separator                          ;
+                   keyword                            boolean
+                   identifier                         bool
+                   separator                          ,
+                   identifier                         bool2
+                   separator                          ,
+                   identifier                         bool3
+                   separator                          ,
+                   identifier                         bool4
                    separator                          ;
                    separator                          $$
-                   identifier                         x
+                   identifier                         i
                    operator                           =
-                   integer                            2
+                   integer                            10
                    separator                          ;
-                   keyword                            scan
-                   separator                          (
-                   identifier                         y
-                   separator                          )
+                   identifier                         max
+                   operator                           =
+                   integer                            0
                    separator                          ;
-                   keyword                            if
+                   identifier                         sum
+                   operator                           =
+                   integer                            3
+                   separator                          ;
+                   keyword                            while
                    separator                          (
-                   identifier                         x
+                   identifier                         i
                    operator                           <
-                   identifier                         y
+                   identifier                         max
                    separator                          )
                    separator                          {
-                   keyword                            print
-                   separator                          (
-                   identifier                         x
-                   separator                          )
+                   identifier                         sum
+                   operator                           =
+                   identifier                         sum
+                   operator                           +
+                   identifier                         i
+                   separator                          ;
+                   identifier                         i
+                   operator                           =
+                   identifier                         i
+                   operator                           +
+                   integer                            1
                    separator                          ;
                    separator                          }
-                   keyword                            endif
+                   keyword                            endwhile
                    separator                          $$

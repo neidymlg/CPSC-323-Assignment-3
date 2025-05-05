@@ -5,6 +5,7 @@
         "string": "cpp",
         "optional": "cpp",
         "xstring": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "iosfwd": "cpp"
     }
 }

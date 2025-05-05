@@ -97,7 +97,7 @@ public:
                 else if (isOperator(myChar)) {
                     char nextChar = getc(filePointer);
                     string op(1, myChar);
-                    if (nextChar == '=') {
+                    if (nextChar == '=' || (myChar == '=' && nextChar == '>')) {
                         op += nextChar; // for operators like <=, >=, ==, !=
                     }
                     else {
