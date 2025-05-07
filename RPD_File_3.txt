@@ -1,0 +1,31 @@
+
+=== INSTRUCTION TABLE ===
+ADDR	OPERATOR	OPERAND
+------------------------
+1	PUSHI		nullopt
+2	POPM		10000
+3	PUSHI		nullopt
+4	POPM		10001
+5	PUSHM		10003
+6	PUSHM		10000
+7	GRT		nullopt
+8	JMP0		15
+9	PUSHM		10003
+10	PUSHM		10001
+11	LES		nullopt
+12	PUSHM		10003
+13	SOUT		nullopt
+14	LABEL		nullopt
+15	LABEL		nullopt
+
+=== STACK CONTENTS ===
+TOP
+----
+BOTTOM
+
+=== SYMBOL TABLE ===
+NAME		ADDRESS		VALUE
+--------------------------------
+z		10003		nullopt
+max		10001		100
+min		10000		0

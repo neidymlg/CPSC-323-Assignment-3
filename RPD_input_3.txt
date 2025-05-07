@@ -1,0 +1,13 @@
+$$
+$$
+integer  min, max, z;
+$$
+min = 0;
+max = 100;
+scan (z);
+if (z > min) {
+    if (z < max) {
+        print(z);
+    } endif
+} endif
+$$

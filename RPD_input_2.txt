@@ -1,0 +1,10 @@
+$$
+$$
+integer x, y;
+$$
+x = 2;
+scan (y);
+if (x < y) {
+    print (x);
+} endif
+$$
