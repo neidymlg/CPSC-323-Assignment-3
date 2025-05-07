@@ -288,7 +288,7 @@ public:
                 cout << "Output: " << value.intVal.value() << endl;
                 break;
             case Value::BOOLEAN:
-                cout << "Output: " << (value.boolVal.value() ? "true" : "false") << endl;
+                cout << "Output: " << (value.boolVal.value() ? "1" : "0") << endl;
                 break;
             case Value::REAL: // most likely delete (i forgot if he said no real anymore)
                 cout << "Output: " << value.realVal.value() << endl;
@@ -316,9 +316,9 @@ public:
         if (expectedValue.type == Value::BOOLEAN) {
             string userInput;
             cin >> userInput;
-            if (userInput == "true") { // maybe change to "0" and "1"
+            if (userInput == "1" || userInput == "true") { // maybe change to "0" and "1"
                 inputValue = Value(true);
-            } else if (userInput == "false") {
+            } else if (userInput == "0" || userInput == "false") {
                 inputValue = Value(false);
             } else {
                 throw runtime_error("Invalid boolean input (must be 'true' or 'false')");
@@ -347,10 +347,11 @@ public:
         Stack.pop();
         Value second = Stack.top(); 
         Stack.pop();
-    
+   
         try {
             int firstVal = getValue(first);
             int secondVal = getValue(second);
+            
             if(first.type == Value::BOOLEAN && second.type == Value::BOOLEAN){
                 Stack.push(Value(firstVal || secondVal));
             }
