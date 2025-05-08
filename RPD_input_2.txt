@@ -1,10 +1,13 @@
 $$
 $$
-integer x, y;
+integer x, y, z;
+boolean bool_1, bool_2;
 $$
 x = 2;
+print(x);
 scan (y);
-if (x < y) {
-    print (x);
+if (x == y) {
+    print (x / y);
+    z = x / y;
 } endif
 $$

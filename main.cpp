@@ -9,8 +9,8 @@ int main(){
 
     //get's file name and reads file
     string FILE_NAME;
-    cout << "Please enter the file name (RPD_input_1.txt): ";
-    getline(cin, FILE_NAME);
+    cout << "Please enter the file name (RPD_input_1.txt, RPD_input_2.txt, RPD_input_3.txt): ";
+    cin >> FILE_NAME;
 
     FILE* filePointer = fopen(FILE_NAME.c_str(), "r");
 
@@ -71,16 +71,38 @@ int main(){
         outFile << "                   " << left << setw(35) << type << tokens[i].value << endl;
     }
 
+    try {
+        // Get RPD filename from user
+        string RPD_File;
+        cout << "Please enter the file name (RPD_output_1.txt, RPD_output_2.txt, RPD_output_3.txt): ";
+        cin >> RPD_File;
+        
+        // Open output files
+        ofstream symbol_assembly_file(RPD_File);
+        if (!symbol_assembly_file.is_open()) {
+            throw runtime_error("Failed to open RPD output file");
+        }
 
-    SyntaxAnalyzer analyzer;
-    OutputRedirector redirect("Syntax_Output.txt"); // Redirect output to the specified file
+        string syntax_output_file = "Syntax_Output.txt";
+        ofstream outSyn_A_File(syntax_output_file);
+        if (!outSyn_A_File.is_open()) {
+            throw runtime_error("Failed to open syntax output file");
+        }
 
-    analyzer.readFile(outputFileName, 4); // Read the input file
+        // Initialize analyzer with both streams
+        SyntaxAnalyzer analyzer(outSyn_A_File, symbol_assembly_file);
+        
+        // Process files
+        analyzer.readFile("Lexical_Analysis_Output.txt", 4); 
+        analyzer.Rat25S();
+        analyzer.display_RPD();
 
-    analyzer.Rat25S(); // Start the parsing process
+        // Files will auto-close when going out of scope
+    } 
+    catch (const exception& e) {
+        cerr << "Error: " << e.what() << endl;
+        return 1;
+    }
 
-
-    string RPD_File = "RPD_File.txt";
-    analyzer.display_RPD(RPD_File);
     return 0;
 }

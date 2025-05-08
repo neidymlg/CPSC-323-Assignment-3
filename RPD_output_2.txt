@@ -1,0 +1,34 @@
+Terminal:
+Output: 2
+Enter value for y: 0
+Output: Undefined
+
+=== INSTRUCTION TABLE ===
+ADDR	OPERATOR	OPERAND
+------------------------
+1	PUSHI		-
+2	POPM		10000
+3	PUSHM		10000
+4	SOUT		-
+5	SIN		-
+6	POPM		10001
+7	PUSHM		10000
+8	PUSHM		10001
+9	EQU		-
+10	JMP0		19
+11	PUSHM		10000
+12	PUSHM		10001
+13	D		-
+14	SOUT		-
+15	PUSHM		10000
+16	PUSHM		10001
+17	D		-
+18	POPM		10002
+19	LABEL		-
+
+=== SYMBOL TABLE ===
+NAME		ADDRESS		Type		Value
+--------------------------------
+z		10002		Undefined		-
+y		10001		Integer		0
+x		10000		Integer		2

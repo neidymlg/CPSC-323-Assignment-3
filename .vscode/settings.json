@@ -6,6 +6,7 @@
         "optional": "cpp",
         "xstring": "cpp",
         "utility": "cpp",
-        "iosfwd": "cpp"
+        "iosfwd": "cpp",
+        "stdexcept": "cpp"
     }
 }

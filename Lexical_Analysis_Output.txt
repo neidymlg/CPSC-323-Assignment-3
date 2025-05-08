@@ -5,53 +5,92 @@ Output:
                    separator                          $$
                    separator                          $$
                    keyword                            integer
-                   identifier                         i
+                   identifier                         min
                    separator                          ,
                    identifier                         max
                    separator                          ,
-                   identifier                         sum
+                   identifier                         z
+                   separator                          ,
+                   identifier                         extra
                    separator                          ;
                    keyword                            boolean
-                   identifier                         bool
+                   identifier                         bool_1
                    separator                          ,
-                   identifier                         bool2
-                   separator                          ,
-                   identifier                         bool3
-                   separator                          ,
-                   identifier                         bool4
+                   identifier                         bool_2
                    separator                          ;
                    separator                          $$
-                   identifier                         i
+                   identifier                         bool_1
                    operator                           =
-                   integer                            10
+                   keyword                            true
                    separator                          ;
-                   identifier                         max
+                   identifier                         bool_2
+                   operator                           =
+                   keyword                            false
+                   separator                          ;
+                   identifier                         min
                    operator                           =
                    integer                            0
                    separator                          ;
-                   identifier                         sum
+                   identifier                         max
                    operator                           =
-                   integer                            3
+                   integer                            100
                    separator                          ;
-                   keyword                            while
+                   keyword                            print
                    separator                          (
-                   identifier                         i
-                   operator                           <
+                   identifier                         max
+                   separator                          )
+                   separator                          ;
+                   keyword                            scan
+                   separator                          (
+                   identifier                         z
+                   separator                          )
+                   separator                          ;
+                   keyword                            if
+                   separator                          (
+                   identifier                         z
+                   operator                           =>
+                   identifier                         min
+                   separator                          )
+                   separator                          {
+                   keyword                            if
+                   separator                          (
+                   identifier                         z
+                   operator                           <=
                    identifier                         max
                    separator                          )
                    separator                          {
-                   identifier                         sum
-                   operator                           =
-                   identifier                         sum
-                   operator                           +
-                   identifier                         i
+                   keyword                            print
+                   separator                          (
+                   identifier                         z
+                   separator                          )
                    separator                          ;
-                   identifier                         i
+                   separator                          }
+                   keyword                            else
+                   separator                          {
+                   identifier                         bool_1
                    operator                           =
-                   identifier                         i
-                   operator                           +
-                   integer                            1
+                   keyword                            false
+                   separator                          ;
+                   identifier                         bool_2
+                   operator                           =
+                   keyword                            true
+                   separator                          ;
+                   separator                          }
+                   keyword                            endif
+                   keyword                            while
+                   separator                          (
+                   identifier                         bool_1
+                   operator                           <
+                   identifier                         bool_2
+                   separator                          )
+                   separator                          {
+                   keyword                            scan
+                   separator                          (
+                   identifier                         extra
+                   separator                          )
                    separator                          ;
                    separator                          }
                    keyword                            endwhile
+                   separator                          }
+                   keyword                            endif
                    separator                          $$
