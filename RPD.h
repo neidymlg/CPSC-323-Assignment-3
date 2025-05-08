@@ -92,7 +92,7 @@ private:
 public:
     Symbol_and_Assembly(ostream& out) : symbol_assembly_file(out) {
     //reserve 1000 spaces in vector for Instruction table
-    InstructTable.reserve(100);
+    InstructTable.reserve(1000);
     if (!out.good()) {
         throw runtime_error("Output stream is not in good state");
     }
