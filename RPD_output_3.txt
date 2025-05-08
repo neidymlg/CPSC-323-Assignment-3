@@ -1,0 +1,54 @@
+Terminal:
+Output: 100
+Enter value for z: -1
+Output: -1
+Enter value for extra: 0
+
+=== INSTRUCTION TABLE ===
+ADDR	OPERATOR	OPERAND
+------------------------
+1	PUSHB		-
+2	POPM		10004
+3	PUSHB		-
+4	POPM		10005
+5	PUSHI		-
+6	POPM		10000
+7	PUSHI		-
+8	POPM		10001
+9	PUSHM		10001
+10	SOUT		-
+11	SIN		-
+12	POPM		10002
+13	PUSHM		10002
+14	PUSHM		10000
+15	GEQ		-
+16	JMP0		35
+17	PUSHM		10002
+18	PUSHM		10001
+19	LEQ		-
+20	PUSHM		10002
+21	SOUT		-
+22	PUSHB		-
+23	POPM		10004
+24	PUSHB		-
+25	POPM		10005
+26	LABEL		-
+27	LABEL		-
+28	PUSHM		10004
+29	PUSHM		10005
+30	LES		-
+31	SIN		-
+32	POPM		10003
+33	JMP		27
+34	LABEL		-
+35	LABEL		-
+
+=== SYMBOL TABLE ===
+NAME		ADDRESS		Type		Value
+--------------------------------
+bool_1		10004		Boolean		false
+z		10002		Integer		-1
+max		10001		Integer		100
+bool_2		10005		Boolean		true
+extra		10003		Integer		0
+min		10000		Integer		0

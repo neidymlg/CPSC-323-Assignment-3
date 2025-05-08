@@ -1,13 +1,25 @@
 $$
 $$
-integer  min, max, z;
+integer  min, max, z, extra;
+boolean bool_1, bool_2;
 $$
+bool_1 = true;
+bool_2 = false;
 min = 0;
 max = 100;
+print(max);
 scan (z);
-if (z > min) {
-    if (z < max) {
+if (z => min) {
+    if (z <= max) {
         print(z);
-    } endif
+    } 
+    else{
+        bool_1 = false;
+        bool_2 = true;
+    }
+    endif
+    while(bool_1 < bool_2){
+        scan(extra);
+    } endwhile
 } endif
 $$

@@ -10,7 +10,7 @@ i = 10;
 max = 0;
 sum = 3;
 while (i < max) {
-sum = sum + i;
+sum = i - sum;
 i = i + 1;
 } endwhile
 $$
