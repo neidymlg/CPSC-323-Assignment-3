@@ -12,37 +12,8 @@
 #include "TokenType.h"
 using namespace std;
 
-struct Value {
-    enum Type { INTEGER, BOOLEAN, UNDEFINED };
-    Type type;
-    optional<int> intVal;
-    optional<bool> boolVal;
-    string identifier;
+enum Type { INTEGER, BOOLEAN, UNDEFINED };
 
-    // Default constructor
-    Value() : type(UNDEFINED) {}
-
-    // Constructors for typed but valueless
-    Value(Type t) : type(t) {
-        switch(t) {
-            case INTEGER: intVal = nullopt; break;
-            case BOOLEAN: boolVal = nullopt; break;
-            default: break;
-        }
-    }
-
-    // Regular constructors
-    Value(int v) : type(INTEGER), intVal(v) {}
-    Value(bool v) : type(BOOLEAN), boolVal(v) {}
-
-    bool hasValue() const {
-        switch(type) {
-            case INTEGER: return intVal.has_value();
-            case BOOLEAN: return boolVal.has_value();
-            default: return false;
-        }
-    }
-};
 
 class Symbol_and_Assembly{
 private:
@@ -63,41 +34,23 @@ private:
 
     struct SymbolInfo {
         int memoryADDR;
-        Value value;
+        Type type;
     };
 
 
     unordered_map<string, SymbolInfo> SymbolTable;
     
-    stack<Value> Stack;
+    stack<Type> Stack;
     stack<int> JumpStack;
-
-    int getValue(const Value& val) {
-        switch (val.type) {
-            case Value::INTEGER:
-                if (!val.intVal.has_value()) {
-                    throw runtime_error("Integer value not initialized");
-                }
-                return val.intVal.value();
-            case Value::BOOLEAN:
-                if (!val.boolVal.has_value()) {
-                    throw runtime_error("Boolean value not initialized");
-                }
-                return (val.boolVal.value() ? 1 : 0);
-            default:
-                throw runtime_error("Invalid value type for arithmetic operation");
-        }
-    }
     
 public:
     Symbol_and_Assembly(ostream& out) : symbol_assembly_file(out) {
-    //reserve 1000 spaces in vector for Instruction table
-    InstructTable.reserve(1000);
-    if (!out.good()) {
-        throw runtime_error("Output stream is not in good state");
+        //reserve 1000 spaces in vector for Instruction table
+        InstructTable.reserve(1000);
+        if (!out.good()) {
+            throw runtime_error("Output stream is not in good state");
+        }
     }
-    symbol_assembly_file << "Terminal:" << endl;
-}
 
      void display_instructions() {
         symbol_assembly_file << "\n=== INSTRUCTION TABLE ===\n";
@@ -116,32 +69,22 @@ public:
 
     void display_symbol_table() {
         symbol_assembly_file << "\n=== SYMBOL TABLE ===\n";
-        symbol_assembly_file << "NAME\t\tADDRESS\t\tType\t\tValue\n";
+        symbol_assembly_file << "NAME\t\tADDRESS\t\tType\n";
         symbol_assembly_file << "--------------------------------\n";
         for (const auto& entry : SymbolTable) {
             symbol_assembly_file << entry.first << "\t\t" << entry.second.memoryADDR;
     
-            switch (entry.second.value.type) {
-                case Value::INTEGER:
-                symbol_assembly_file << "\t\t" << "Integer" << "\t\t";
-                    if (entry.second.value.intVal.has_value()) {
-                        symbol_assembly_file << entry.second.value.intVal.value() << endl;
-                    } else {
-                        symbol_assembly_file << "-" << endl;
-                    }
+            switch (entry.second.type) {
+                case Type::INTEGER:
+                    symbol_assembly_file << "\t\t" << "Integer" << endl;
                     break;
     
-                case Value::BOOLEAN:
-                    symbol_assembly_file << "\t\t" << "Boolean" << "\t\t";
-                    if (entry.second.value.boolVal.has_value()) {
-                        symbol_assembly_file << (entry.second.value.boolVal.value() ? "true" : "false") << endl;
-                    } else {
-                        symbol_assembly_file << "-" << endl;
-                    }
+                case Type::BOOLEAN:
+                    symbol_assembly_file << "\t\t" << "Boolean" << endl;
                     break;
     
                 default:
-                    symbol_assembly_file << "\t\t" << "Undefined" << "\t\t-\n";
+                    symbol_assembly_file << "\t\t" << "Undefined" << endl;
                     break;
             }
         }
@@ -153,9 +96,9 @@ public:
     }
 
     //Add a variable into the Symbol table
-    void generate_symbol(string var, Value value){
+    void generate_symbol(string var, Type type){
         SymbolTable[var].memoryADDR = memoryAddr;
-        SymbolTable[var].value =  value; 
+        SymbolTable[var].type =  type; 
         memoryAddr++;
     }
 
@@ -179,21 +122,26 @@ public:
     }
 
     //PUSHI
-    void PUSHI(int intValue){
+    void PUSHI(Type type){
         //Pushes the {Integer Value} onto the Top of the Stack (TOS)
-        Stack.push(Value(intValue));
+        Stack.push(Type(type));
+        generate_instruction("PUSHI");
     }
 
-    void PUSHB(bool boolValue) {
-        Stack.push(Value(boolValue));
+    void PUSHB(Type type) {
+        //Push Boolean values onto TOS
+        Stack.push(Type(type));
+        generate_instruction("PUSHB");
+
     }
 
     //PUSHM
-    void PUSHM(string var){
+    void PUSHM(string var, int memoryLoc){
         //Pushes the value stored at {ML} onto TOS
         auto it = SymbolTable.find(var);
         if (it != SymbolTable.end()) {
-            Stack.push(it->second.value);
+            Stack.push(it->second.type);
+            generate_instruction("PUSHM", memoryLoc);
         } else {
             throw runtime_error("Undefined variable: " + var);
         }
@@ -204,12 +152,13 @@ public:
         if(Stack.empty()){
             throw runtime_error("Stack underflow");
         }
-            Value stackValue = Stack.top();
-            Stack.pop();
 
-            SymbolTable[var].value = stackValue;
+        Type stackType = Stack.top();
+        Stack.pop();
 
-            generate_instruction("POPM", memoryLoc);
+        SymbolTable[var].type = stackType;
+
+        generate_instruction("POPM", memoryLoc);
     }
 
     void SOUT(){
@@ -217,23 +166,8 @@ public:
         if (Stack.empty()) {
             throw runtime_error("Stack underflow");
         }
-        Value value = Stack.top();
+        Type type = Stack.top();
         Stack.pop();
-        
-        switch(value.type) {
-            case Value::INTEGER:
-                cout << "Output: " << value.intVal.value() << endl;
-                symbol_assembly_file << "Output: " << value.intVal.value() << endl;
-                break;
-            case Value::BOOLEAN:
-                cout << "Output: " << (value.boolVal.value()) << endl;
-                symbol_assembly_file << "Output: " << (value.boolVal.value()) << endl;
-
-                break;
-            default:
-                cout << "Output: Undefined" << endl;
-                symbol_assembly_file << "Output: Undefined" << endl;
-        }
 
         generate_instruction("SOUT");
     }
@@ -244,28 +178,17 @@ public:
         if (it == SymbolTable.end()) {
             throw runtime_error("Undefined variable: " + var);
         }
-        Value& expectedValue = it->second.value;
-        cout << "Enter value for " << var << ": ";
 
-        if (expectedValue.type == Value::BOOLEAN) {
-            string userInput;
-            cin >> userInput;
-            symbol_assembly_file << "Enter value for " << var << ": " << userInput << endl;
-            if (userInput == "1" || userInput == "true") { // maybe change to "0" and "1"
-                PUSHB(true);
-            } else if (userInput == "0" || userInput == "false") {
-                PUSHB(false);
-            } else {
-                throw runtime_error("Invalid boolean input (must be 'true' or 'false')");
-            }
-        } else if (expectedValue.type == Value::INTEGER) {
-            int num;
-            cin >> num;
-            symbol_assembly_file << "Enter value for " << var << ": " << num << endl;
-            PUSHI(num);
+        Type expectedType = it->second.type;
+
+        if (expectedType == Type::BOOLEAN) {
+            PUSHB(Type(Type::BOOLEAN));
+        } else if (expectedType == Type::INTEGER) {
+            PUSHI(Type(Type::INTEGER));
         }
         else {
-            throw runtime_error("Unsupported type for SIN");
+            Stack.push(Type(Type::UNDEFINED));
+            generate_instruction("PUSHU");
         }
         
         generate_instruction("SIN");
@@ -277,110 +200,83 @@ public:
             throw runtime_error("Stack underflow");
         }
     
-        Value first = Stack.top(); 
+        Type first = Stack.top(); 
         Stack.pop();
-        Value second = Stack.top(); 
+        Type second = Stack.top(); 
         Stack.pop();
    
-        if(first.type == Value::INTEGER && second.type == Value::INTEGER){
-            try {
-                int firstVal = getValue(first);
-                int secondVal = getValue(second);
-                
-                Stack.push(Value(secondVal + firstVal));
-            } catch (const exception& e) {
-                throw runtime_error("Addition error");
-            }
+        if(first == Type::INTEGER && second == Type::INTEGER){
+            Stack.push(Type(Type::INTEGER));
         }
         else {
-            Stack.push(Value(Value::UNDEFINED));
+            Stack.push(Type(Type::UNDEFINED));
         }
-
+        
+        generate_instruction("A");
 
     }
 
     void S(){
         // Pop the first two items from stack and push the difference onto the TOS
-        if (Stack.size() < 2) {
+                if (Stack.size() < 2) {
             throw runtime_error("Stack underflow");
         }
     
-        Value first = Stack.top(); 
+        Type first = Stack.top(); 
         Stack.pop();
-        Value second = Stack.top(); 
+        Type second = Stack.top(); 
         Stack.pop();
-    
-
-        if(first.type == Value::INTEGER && second.type == Value::INTEGER){
-            try {
-                int firstVal = getValue(first);
-                int secondVal = getValue(second);
-                
-                Stack.push(Value(secondVal - firstVal));
-            } catch (const exception& e) {
-                throw runtime_error("Subtraction error");
-            }
+   
+        if(first == Type::INTEGER && second == Type::INTEGER){
+            Stack.push(Type(Type::INTEGER));
         }
         else {
-            Stack.push(Value(Value::UNDEFINED));
+            Stack.push(Type(Type::UNDEFINED));
         }
+        
+        generate_instruction("S");
     }
 
     void M(){
         // Pop the first two items from stack and push the product onto the TOS
-        if (Stack.size() < 2) {
+                if (Stack.size() < 2) {
             throw runtime_error("Stack underflow");
         }
     
-        Value first = Stack.top(); 
+        Type first = Stack.top(); 
         Stack.pop();
-        Value second = Stack.top(); 
+        Type second = Stack.top(); 
         Stack.pop();
-    
-        if(first.type == Value::INTEGER && second.type == Value::INTEGER){
-            try {
-                int firstVal = getValue(first);
-                int secondVal = getValue(second);
-                
-                Stack.push(Value(secondVal * firstVal));
-            } catch (const exception& e) {
-                throw runtime_error("Multiplication error");
-            }
+   
+        if(first == Type::INTEGER && second == Type::INTEGER){
+            Stack.push(Type(Type::INTEGER));
         }
         else {
-            Stack.push(Value(Value::UNDEFINED));
+            Stack.push(Type(Type::UNDEFINED));
         }
+        
+        generate_instruction("M");
     }
 
     void D(){
         // Pop the first two items from stack and push the result onto the TOS
-        if (Stack.size() < 2) {
+                if (Stack.size() < 2) {
             throw runtime_error("Stack underflow");
         }
     
-        Value first = Stack.top(); 
+        Type first = Stack.top(); 
         Stack.pop();
-        Value second = Stack.top(); 
+        Type second = Stack.top(); 
         Stack.pop();
-    
-        if(first.type == Value::INTEGER && second.type == Value::INTEGER){
-            try {
-                int firstVal = getValue(first);
-                int secondVal = getValue(second);
-                
-                if(firstVal == 0){
-                    Stack.push(Value(Value::UNDEFINED));
-                }           
-                else{
-                    Stack.push(Value(secondVal / firstVal));
-                }
-            } catch (const exception& e) {
-                throw runtime_error("Division error");
-            }
+   
+        if(first == Type::INTEGER && second == Type::INTEGER){
+            Stack.push(Type(Type::INTEGER));
         }
         else {
-            Stack.push(Value(Value::UNDEFINED));
+            Stack.push(Type(Type::UNDEFINED));
         }
+        
+        generate_instruction("D");
     }
 
     void GRT(){
@@ -389,18 +285,22 @@ public:
             throw runtime_error("Stack underflow");
         }
     
-        Value first = Stack.top(); 
+        Type first = Stack.top(); 
         Stack.pop();
-        Value second = Stack.top(); 
+        Type second = Stack.top(); 
         Stack.pop();
-    
-        try {
-            int firstVal = getValue(first);
-            int secondVal = getValue(second);
-            Stack.push(Value(secondVal > firstVal));
-        } catch (const exception& e) {
-            throw runtime_error("GRT error");
+   
+        if(first == Type::INTEGER && second == Type::INTEGER){
+            Stack.push(Type(Type::INTEGER));
         }
+        else if(first == Type::BOOLEAN && second == Type::BOOLEAN){
+            Stack.push(Type(Type::BOOLEAN));
+        }
+        else {
+            Stack.push(Type(Type::UNDEFINED));
+        }
+        
+        generate_instruction("GRT");
     }
 
     void LES() {
@@ -409,38 +309,46 @@ public:
             throw runtime_error("Stack underflow");
         }
     
-        Value first = Stack.top(); 
+        Type first = Stack.top(); 
         Stack.pop();
-        Value second = Stack.top(); 
+        Type second = Stack.top(); 
         Stack.pop();
-    
-        try {
-            int firstVal = getValue(first);
-            int secondVal = getValue(second);
-            Stack.push(Value(secondVal < firstVal));
-        } catch (const exception& e) {
-            throw runtime_error("LES error");
+   
+        if(first == Type::INTEGER && second == Type::INTEGER){
+            Stack.push(Type(Type::INTEGER));
         }
+        else if(first == Type::BOOLEAN && second == Type::BOOLEAN){
+            Stack.push(Type(Type::BOOLEAN));
+        }
+        else {
+            Stack.push(Type(Type::UNDEFINED));
+        }
+        
+        generate_instruction("LES");
     }
 
     void EQU() {
         //Pops two items from the stack and pushes 1 onto TOS if they are equal otherwise push 0
-        if (Stack.size() < 2) {
+       if (Stack.size() < 2) {
             throw runtime_error("Stack underflow");
         }
     
-        Value first = Stack.top(); 
+        Type first = Stack.top(); 
         Stack.pop();
-        Value second = Stack.top(); 
+        Type second = Stack.top(); 
         Stack.pop();
-    
-        try {
-            int firstVal = getValue(first);
-            int secondVal = getValue(second);
-            Stack.push(Value(secondVal == firstVal));
-        } catch (const exception& e) {
-            throw runtime_error("EQU error");
+   
+        if(first == Type::INTEGER && second == Type::INTEGER){
+            Stack.push(Type(Type::INTEGER));
         }
+        else if(first == Type::BOOLEAN && second == Type::BOOLEAN){
+            Stack.push(Type(Type::BOOLEAN));
+        }
+        else {
+            Stack.push(Type(Type::UNDEFINED));
+        }
+        
+        generate_instruction("EQU");
     }
 
     void NEQ() {
@@ -449,39 +357,46 @@ public:
             throw runtime_error("Stack underflow");
         }
     
-        Value first = Stack.top(); 
+        Type first = Stack.top(); 
         Stack.pop();
-        Value second = Stack.top(); 
+        Type second = Stack.top(); 
         Stack.pop();
-    
-        try {
-            int firstVal = getValue(first);
-            int secondVal = getValue(second);
-            Stack.push(Value(secondVal != firstVal));
-        } catch (const exception& e) {
-            throw runtime_error("NEQ error");
+   
+        if(first == Type::INTEGER && second == Type::INTEGER){
+            Stack.push(Type(Type::INTEGER));
         }
-
+        else if(first == Type::BOOLEAN && second == Type::BOOLEAN){
+            Stack.push(Type(Type::BOOLEAN));
+        }
+        else {
+            Stack.push(Type(Type::UNDEFINED));
+        }
+        
+        generate_instruction("NEQ");
     }
 
     void GEQ() {
         //Pops two items from the stack and pushes 1 onto TOS if second item is larger or equal otherwise push 0
-        if (Stack.size() < 2) {
+       if (Stack.size() < 2) {
             throw runtime_error("Stack underflow");
         }
     
-        Value first = Stack.top(); 
+        Type first = Stack.top(); 
         Stack.pop();
-        Value second = Stack.top(); 
+        Type second = Stack.top(); 
         Stack.pop();
-    
-        try {
-            int firstVal = getValue(first);
-            int secondVal = getValue(second);
-            Stack.push(Value(secondVal >= firstVal));
-        } catch (const exception& e) {
-            throw runtime_error("GEQ error");
+   
+        if(first == Type::INTEGER && second == Type::INTEGER){
+            Stack.push(Type(Type::INTEGER));
         }
+        else if(first == Type::BOOLEAN && second == Type::BOOLEAN){
+            Stack.push(Type(Type::BOOLEAN));
+        }
+        else {
+            Stack.push(Type(Type::UNDEFINED));
+        }
+        
+        generate_instruction("GEQ");
 
     }
 
@@ -491,18 +406,22 @@ public:
             throw runtime_error("Stack underflow");
         }
     
-        Value first = Stack.top(); 
+        Type first = Stack.top(); 
         Stack.pop();
-        Value second = Stack.top(); 
+        Type second = Stack.top(); 
         Stack.pop();
-    
-        try {
-            int firstVal = getValue(first);
-            int secondVal = getValue(second);
-            Stack.push(Value(secondVal <= firstVal));
-        } catch (const exception& e) {
-            throw runtime_error("LEQ error");
+   
+        if(first == Type::INTEGER && second == Type::INTEGER){
+            Stack.push(Type(Type::INTEGER));
         }
+        else if(first == Type::BOOLEAN && second == Type::BOOLEAN){
+            Stack.push(Type(Type::BOOLEAN));
+        }
+        else {
+            Stack.push(Type(Type::UNDEFINED));
+        }
+        
+        generate_instruction("LEQ");
     }
 
     void JMP0(){
@@ -510,11 +429,9 @@ public:
         if (Stack.empty()){
             throw runtime_error("Stack underflow");
         }
-        Value value = Stack.top();
+        Type value = Stack.top();
         Stack.pop();
-        if(getValue(value) == 0){
-            generate_instruction("JMP0");
-        }
+        generate_instruction("JMP0");
     }
 
     void JMP(int instructionLoc) {
@@ -526,6 +443,9 @@ public:
         JumpStack.push(instructionLoc);
     }
 
+    void LABEL() {
+        generate_instruction("LABEL");
+    }
 };
 
 class SyntaxAnalyzer { 
@@ -709,7 +629,7 @@ public:
         if (token.type == TokenType::KEYWORD && token.value == "function") {
             outSyntaxAnalyzer << "<Function> -> function <Identifier> ( <Opt Parameter List> ) <Opt Declaration List> <Body>" << endl;
             outSyntaxAnalyzer << "<Function> -> function <Identifier>" << endl;   
-            Identifier(Value::UNDEFINED);
+            Identifier(Type(Type::UNDEFINED));
             token = lexer(true);
             if(token.type == TokenType::SEPARATOR && token.value == "("){
                 outSyntaxAnalyzer << "( <Opt Parameter List>" << endl;   
@@ -774,24 +694,24 @@ public:
         Qualifier();
     }
 
-    Value Qualifier(){
+    Type Qualifier(){
         // integer | boolean | real
         Token token = lexer(true);
         if(token.type == TokenType::KEYWORD && token.value == "integer"){
             outSyntaxAnalyzer << "<Qualifier> -> integer | boolean | real" << endl;
-            return Value(Value::INTEGER);
+            return Type(Type::INTEGER);
         }
         else if(token.type == TokenType::KEYWORD && token.value == "boolean"){
             outSyntaxAnalyzer << "<Qualifier> -> integer | boolean | real" << endl;
-            return Value(Value::BOOLEAN);
+            return Type(Type::BOOLEAN);
         }
         else if(token.type == TokenType::KEYWORD && token.value == "real"){
             outSyntaxAnalyzer << "<Qualifier> -> integer | boolean | real" << endl;
-            return Value(Value::UNDEFINED);
+            return Type(Type::UNDEFINED);
         }
         else {
             outSyntaxAnalyzer << "Error: Invalid Qualifier. Expected token type of integer, boolean, or real";
-            return Value(Value::UNDEFINED);
+            return Type(Type::UNDEFINED);
         }
     }
 
@@ -856,7 +776,7 @@ public:
     void Declaration(){
         // <Qualifier > <IDs>
         outSyntaxAnalyzer << "<Declaration> -> <Qualifier> <IDs>" << endl;
-        Value value = Qualifier();
+        Type value = Qualifier();
         IDS(value);
     }
 
@@ -866,7 +786,7 @@ public:
         id();
     }
 
-    void IDS(Value value){
+    void IDS(Type value){
         outSyntaxAnalyzer << "<IDs> -> <Identifier> <id>" << endl;
         // <Identifier> <id>
         Identifier(value);
@@ -887,7 +807,7 @@ public:
         }
     }
 
-    void id(Value value){
+    void id(Type value){
         //  (ε | , <IDs>)
         Token token = lexer();
         currentIndex--;
@@ -917,12 +837,12 @@ public:
         }
     }
 
-    void Identifier(Value valueType){
+    void Identifier(Type valueType){
         // <Identifier> ::= <IDENTIFIER>
         Token token = lexer(true);
         if(token.type == TokenType::IDENTIFIER) {
             outSyntaxAnalyzer << "<Identifier> -> Identifier" << endl;
-            if(valueType.type != Value::UNDEFINED){
+            if(valueType != Type::UNDEFINED){
                 symbolAndAssembly.generate_symbol(token.value, valueType);
             }
         } else {
@@ -1073,7 +993,7 @@ public:
             outSyntaxAnalyzer << "<While> -> while ( <Condition> ) <Statement> endwhile" << endl;
             outSyntaxAnalyzer << "<While> -> while" << endl;
             int instruction_Addr = symbolAndAssembly.getInstructionAddr();
-            symbolAndAssembly.generate_instruction("LABEL");
+            symbolAndAssembly.LABEL();
             token = lexer(true);
             if(token.type == TokenType::SEPARATOR && token.value == "("){
                 outSyntaxAnalyzer << "( <Condition>" << endl;
@@ -1086,7 +1006,7 @@ public:
 
                     symbolAndAssembly.JMP(instruction_Addr);
                     symbolAndAssembly.back_patch(symbolAndAssembly.getInstructionAddr());
-                    symbolAndAssembly.generate_instruction("LABEL");
+                    symbolAndAssembly.LABEL();
                     
                     if(token.type == TokenType::KEYWORD && token.value == "endwhile"){
                     outSyntaxAnalyzer << "endwhile" << endl;
@@ -1138,7 +1058,7 @@ public:
         Token token = lexer(true);
         if(token.type == TokenType::KEYWORD && token.value == "endif"){
             symbolAndAssembly.back_patch(symbolAndAssembly.getInstructionAddr());
-            symbolAndAssembly.generate_instruction("LABEL");
+            symbolAndAssembly.LABEL();
             outSyntaxAnalyzer << "<if> -> endif" << endl;
         }
         else if(token.type == TokenType::KEYWORD && token.value == "else"){
@@ -1147,7 +1067,7 @@ public:
             token = lexer(true);
             if(token.type == TokenType::KEYWORD && token.value == "endif"){
                 symbolAndAssembly.back_patch(symbolAndAssembly.getInstructionAddr());
-                symbolAndAssembly.generate_instruction("LABEL");
+                symbolAndAssembly.LABEL();
                 outSyntaxAnalyzer << "endif" << endl;
                 outSyntaxAnalyzer << "End of <If>" << endl;
             }
@@ -1202,37 +1122,31 @@ public:
             Expression();
             if(token.value == ">"){
                 symbolAndAssembly.GRT();
-                symbolAndAssembly.generate_instruction("GRT");
                 symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
                 symbolAndAssembly.JMP0();
             }
             else if(token.value == "<"){
                 symbolAndAssembly.LES();
-                symbolAndAssembly.generate_instruction("LES");
                 symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
                 symbolAndAssembly.JMP0();
             }
             else if(token.value == "=="){
                 symbolAndAssembly.EQU();
-                symbolAndAssembly.generate_instruction("EQU");
                 symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
                 symbolAndAssembly.JMP0();
             }
             else if(token.value == "!="){
                 symbolAndAssembly.NEQ();
-                symbolAndAssembly.generate_instruction("NEQ");
                 symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
                 symbolAndAssembly.JMP0();
             }
             else if(token.value == "=>"){
                 symbolAndAssembly.GEQ();
-                symbolAndAssembly.generate_instruction("GEQ");
                 symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
                 symbolAndAssembly.JMP0();
             }
             else if(token.value == "<="){
                 symbolAndAssembly.LEQ();
-                symbolAndAssembly.generate_instruction("LEQ");
                 symbolAndAssembly.push_JMPstack(symbolAndAssembly.getInstructionAddr() - 1);
                 symbolAndAssembly.JMP0();
             }
@@ -1261,11 +1175,9 @@ public:
             Term();
             if(operator_addition_subtraction == "+"){
                 symbolAndAssembly.A();
-                symbolAndAssembly.generate_instruction("A");
             }
             else if(operator_addition_subtraction == "-"){
                 symbolAndAssembly.S();
-                symbolAndAssembly.generate_instruction("S");
             }
             E();
         }
@@ -1288,11 +1200,9 @@ public:
 
             if(var == "*"){
                 symbolAndAssembly.M();
-                symbolAndAssembly.generate_instruction("M");
             }
             else if(var == "/"){
                 symbolAndAssembly.D();
-                symbolAndAssembly.generate_instruction("D");
             }
 
             T();
@@ -1347,23 +1257,20 @@ public:
                  }
              }
             else{
-                symbolAndAssembly.PUSHM(oldToken.value);
-                symbolAndAssembly.generate_instruction("PUSHM", symbolAndAssembly.getAddress(oldToken.value));
+                symbolAndAssembly.PUSHM(oldToken.value, symbolAndAssembly.getAddress(oldToken.value));
                 outSyntaxAnalyzer << "<Primary> -> <Identifier> | <Integer> | <Identifier> | true, false" << endl;
             }
          }
          else if (token.type == TokenType::INTEGER) {
             //ADD IN PUSHM for the identifier, PUSHI for the random Integers, CHANGE
-            symbolAndAssembly.PUSHI(stoi(token.value));
-            symbolAndAssembly.generate_instruction("PUSHI");
+            symbolAndAssembly.PUSHI(Type(Type::INTEGER));
             outSyntaxAnalyzer << "<Primary> -> <Identifier> | <Integer> | <Real> | true, false" << endl;
         } 
         else if(token.type == TokenType::REAL){
             outSyntaxAnalyzer << "<Primary> -> <Identifier> | <Integer> | <Real> | true, false" << endl;
         }
         else if(token.type == TokenType::KEYWORD && (token.value == "true" || token.value == "false")){
-            symbolAndAssembly.PUSHB( token.value == "true" ? true : false );
-            symbolAndAssembly.generate_instruction("PUSHB");
+            symbolAndAssembly.PUSHB(Type(Type::INTEGER));
             outSyntaxAnalyzer << "<Primary> -> <Identifier> | <Integer> | <Real> | true, false" << endl;
         }
         else if (token.type == TokenType::SEPARATOR && token.value == "("){
