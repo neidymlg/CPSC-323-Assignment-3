@@ -1,0 +1,17 @@
+$$
+$$
+integer a, b, result;
+boolean isGreater;
+$$
+scan (a);
+scan (b);
+if (a > b) {
+    result = a;
+    isGreater = true;
+} else {
+    result = b;
+    isGreater = false;
+} endif
+print (result);
+print (isGreater);
+$$

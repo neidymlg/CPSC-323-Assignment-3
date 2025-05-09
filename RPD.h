@@ -166,7 +166,7 @@ public:
         if (Stack.empty()) {
             throw runtime_error("Stack underflow");
         }
-        Type type = Stack.top();
+        // Type type = Stack.top();
         Stack.pop();
 
         generate_instruction("SOUT");
@@ -429,7 +429,7 @@ public:
         if (Stack.empty()){
             throw runtime_error("Stack underflow");
         }
-        Type value = Stack.top();
+        // Type value = Stack.top();
         Stack.pop();
         generate_instruction("JMP0");
     }
@@ -528,8 +528,8 @@ private:
 
 public: 
     SyntaxAnalyzer(ostream& syntaxOut, ostream& symbolOut) 
-    : outSyntaxAnalyzer(syntaxOut), 
-    symbolAndAssembly(symbolOut) {  
+    : symbolAndAssembly(symbolOut),
+    outSyntaxAnalyzer(syntaxOut) {  
         if (!syntaxOut.good() || !symbolOut.good()) {
             throw runtime_error("Output stream(s) not in good state");
         }

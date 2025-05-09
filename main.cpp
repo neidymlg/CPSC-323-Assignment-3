@@ -9,7 +9,7 @@ int main(){
 
     //get's file name and reads file
     string FILE_NAME;
-    cout << "Please enter the file name (RPD_input_1.txt, RPD_input_2.txt, RPD_input_3.txt): ";
+    cout << "Please enter the file name (t1.txt, t2.txt, t3.txt, t4.txt, t5.txt): ";
     cin >> FILE_NAME;
 
     FILE* filePointer = fopen(FILE_NAME.c_str(), "r");
@@ -74,7 +74,7 @@ int main(){
     try {
         // Get RPD filename from user
         string RPD_File;
-        cout << "Please enter the file name (RPD_output_1.txt, RPD_output_2.txt, RPD_output_3.txt): ";
+        cout << "Please enter the file name (o1.txt, o2.txt, o3.txt, o4.txt, o5.txt): ";
         cin >> RPD_File;
         
         // Open output files

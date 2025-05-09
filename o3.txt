@@ -26,8 +26,8 @@ ADDR	OPERATOR	OPERAND
 === SYMBOL TABLE ===
 NAME		ADDRESS		Type
 --------------------------------
-z		10002		Integer
 bool_2		10004		Boolean
-y		10001		Integer
 bool_1		10003		Boolean
+z		10002		Integer
+y		10001		Integer
 x		10000		Integer

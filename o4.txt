@@ -1,0 +1,35 @@
+
+=== INSTRUCTION TABLE ===
+ADDR	OPERATOR	OPERAND
+------------------------
+1	PUSHI		-
+2	SIN		-
+3	POPM		10000
+4	PUSHI		-
+5	SIN		-
+6	POPM		10001
+7	PUSHM		10000
+8	PUSHM		10001
+9	GRT		-
+10	JMP0		19
+11	PUSHM		10000
+12	POPM		10002
+13	PUSHB		-
+14	POPM		10003
+15	PUSHM		10001
+16	POPM		10002
+17	PUSHB		-
+18	POPM		10003
+19	LABEL		-
+20	PUSHM		10002
+21	SOUT		-
+22	PUSHM		10003
+23	SOUT		-
+
+=== SYMBOL TABLE ===
+NAME		ADDRESS		Type
+--------------------------------
+isgreater		10003		Integer
+result		10002		Integer
+b		10001		Integer
+a		10000		Integer
