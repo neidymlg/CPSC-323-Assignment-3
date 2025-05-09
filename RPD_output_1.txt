@@ -1,4 +1,3 @@
-Terminal:
 
 === INSTRUCTION TABLE ===
 ADDR	OPERATOR	OPERAND
@@ -14,9 +13,9 @@ ADDR	OPERATOR	OPERAND
 9	PUSHM		10001
 10	LES		-
 11	JMP0		21
-12	PUSHM		10002
-13	PUSHM		10000
-14	A		-
+12	PUSHM		10000
+13	PUSHM		10002
+14	S		-
 15	POPM		10002
 16	PUSHM		10000
 17	PUSHI		-
@@ -26,12 +25,12 @@ ADDR	OPERATOR	OPERAND
 21	LABEL		-
 
 === SYMBOL TABLE ===
-NAME		ADDRESS		Type		Value
+NAME		ADDRESS		Type
 --------------------------------
-bool2		10004		Boolean		-
-bool4		10006		Boolean		-
-bool		10003		Boolean		-
-sum		10002		Integer		13
-bool3		10005		Boolean		-
-max		10001		Integer		0
-i		10000		Integer		11
+bool2		10004		Boolean
+bool4		10006		Boolean
+bool		10003		Boolean
+sum		10002		Integer
+bool3		10005		Boolean
+max		10001		Integer
+i		10000		Integer
